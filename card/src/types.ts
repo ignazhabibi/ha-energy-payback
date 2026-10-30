@@ -1,0 +1,39 @@
+// The parts of Home Assistant's frontend objects the card uses.
+
+export interface HassEntityState {
+  entity_id: string;
+  state: string;
+  attributes: Record<string, unknown>;
+}
+
+export interface HassEntityRegistryEntry {
+  entity_id: string;
+  device_id?: string | null;
+  platform: string;
+  translation_key?: string | null;
+}
+
+export interface HomeAssistant {
+  states: Record<string, HassEntityState>;
+  entities: Record<string, HassEntityRegistryEntry>;
+  locale: { language: string };
+  language?: string;
+  config: { currency: string };
+}
+
+export type Category = "pv" | "heat_pump" | "wallbox";
+
+export interface CategoryFigures {
+  category: Category;
+  savingEntity: string;
+  calculating: boolean;
+  saving: number | null;
+  investment: number | null;
+  payback: number | null;
+  perYear: number | null;
+  countingSince: Date | null;
+  commissioned: Date | null;
+  dataComplete: boolean;
+  yearlyFrom: Date | null;
+  assumedPrice: number | null;
+}

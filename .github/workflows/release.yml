@@ -1,0 +1,15 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check that the manifest version matches the tag
+        run: |
+          version=$(jq -r .version custom_components/energy_payback/manifest.json)
+          test "v$version" = "${{ github.event.release.tag_name }}" || test "$version" = "${{ github.event.release.tag_name }}"

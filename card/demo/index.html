@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energy Payback card demo</title>
+<style>
+  /* Home Assistant's default theme variables, light and dark, approximated. */
+  :root {
+    --primary-text-color: #212121; --secondary-text-color: #727272;
+    --divider-color: rgba(0,0,0,.12); --primary-color: #03a9f4;
+    --card-background-color: #fff; --primary-background-color: #fafafa;
+    --ha-card-border-color: #e0e0e0;
+  }
+  :root[data-theme="dark"] {
+    --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b;
+    --divider-color: rgba(225,225,225,.12); --primary-color: #03a9f4;
+    --card-background-color: #1c1c1c; --primary-background-color: #111111;
+    --ha-card-border-color: rgba(225,225,225,.12);
+  }
+  body { margin: 0; background: var(--primary-background-color); color: var(--primary-text-color);
+         font: 14px/20px Roboto, system-ui, sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 16px; }
+  h1 { font-size: 20px; font-weight: 500; }
+  .label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--secondary-text-color); margin: 0 0 6px; }
+</style>
+<script>
+  // A stand-in for Home Assistant's ha-card.
+  customElements.define("ha-card", class extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" }).innerHTML = `<style>:host{display:block;background:var(--card-background-color);
+        border:1px solid var(--ha-card-border-color);border-radius:12px;color:var(--primary-text-color)}</style><slot></slot>`;
+    }
+  });
+  const params = new URLSearchParams(location.search);
+  if (params.get("theme")) document.documentElement.dataset.theme = params.get("theme");
+</script>
+<script type="module" src="../../custom_components/energy_payback/frontend/energy-payback-card.js"></script>
+</head>
+<body>
+<main>
+  <h1>Energy Payback card</h1>
+  <div class="grid" id="grid"></div>
+</main>
+<script type="module">
+  const language = new URLSearchParams(location.search).get("lang") ?? "de";
+  const day = 24 * 3600 * 1000;
+  const now = Date.now();
+
+  function hass(categories, extra = {}) {
+    const states = {}, entities = {};
+    for (const c of categories) {
+      const device = `device_${c.category}`;
+      const id = (key) => `sensor.${c.category}_${key}`;
+      entities[id("saving")] = { entity_id: id("saving"), device_id: device, platform: "energy_payback", translation_key: "saving" };
+      entities[id("payback")] = { entity_id: id("payback"), device_id: device, platform: "energy_payback", translation_key: "payback" };
+      entities[id("per_year")] = { entity_id: id("per_year"), device_id: device, platform: "energy_payback", translation_key: "saving_per_year" };
+      states[id("saving")] = { entity_id: id("saving"), state: c.calculating ? "unknown" : String(c.saving), attributes: {
+        category: c.category, calculating: !!c.calculating, investment: c.investment ?? null,
+        counting_since: c.since ? new Date(c.since).toISOString() : null,
+        commissioned: c.commissioned ?? null, data_complete: c.complete ?? true,
+        yearly_from: c.since ? new Date(new Date(c.since).getTime() + 365.25 * day).toISOString() : null,
+        assumed_price: c.price ?? null } };
+      const payback = c.investment && (c.complete ?? true) && !c.calculating ? (c.saving / c.investment) * 100 : null;
+      states[id("payback")] = { entity_id: id("payback"), state: payback === null ? "unknown" : String(payback), attributes: {} };
+      states[id("per_year")] = { entity_id: id("per_year"), state: c.perYear == null ? "unknown" : String(c.perYear), attributes: {} };
+    }
+    return { states, entities, locale: { language }, config: { currency: "EUR" }, ...extra };
+  }
+
+  const household = [
+    { category: "pv", saving: 6240, investment: 14500, perYear: 1719, since: "2023-03-14", complete: true },
+    { category: "heat_pump", saving: 1410, investment: 9000, perYear: 653, since: "2024-09-01", price: 0.11 },
+    { category: "wallbox", saving: 2130, perYear: 724, since: "2023-11-01", price: 1.75 },
+  ];
+  const cases = [
+    ["a · Direkt nach der Einrichtung", hass(household.map((c) => ({ ...c, calculating: true }))), "total"],
+    ["b · Gesamt", hass(household), "total"],
+    ["c · Pro Jahr", hass(household), "yearly"],
+    ["d · PV-Anlage älter als die Daten", hass([{ ...household[0], complete: false, commissioned: "2019-05-01" }, household[1], household[2]]), "total"],
+    ["e · Erst wenige Monate Daten, pro Jahr", hass([
+      { category: "pv", saving: 410, investment: 14500, perYear: null, since: new Date(now - 120 * day).toISOString() },
+      { category: "heat_pump", saving: 95, investment: 9000, perYear: null, since: new Date(now - 120 * day).toISOString(), price: 0.11 },
+    ]), "yearly"],
+    ["f · Amortisiert", hass([{ category: "pv", saving: 16100, investment: 14500, perYear: 1800, since: "2017-03-14" }]), "yearly"],
+    ["g · Nicht eingerichtet", hass([]), "total"],
+  ];
+  const grid = document.getElementById("grid");
+  for (const [label, mock, view] of cases) {
+    const wrap = document.createElement("section");
+    wrap.innerHTML = `<p class="label">${label}</p>`;
+    const card = document.createElement("energy-payback-card");
+    card.setConfig({});
+    card._view = view;
+    card.hass = mock;
+    wrap.append(card);
+    grid.append(wrap);
+  }
+</script>
+</body>
+</html>

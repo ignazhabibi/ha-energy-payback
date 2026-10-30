@@ -1,0 +1,18 @@
+{
+  "entity": {
+    "sensor": {
+      "balance": {
+        "default": "mdi:scale-balance"
+      },
+      "payback": {
+        "default": "mdi:progress-check"
+      },
+      "saving": {
+        "default": "mdi:piggy-bank-outline"
+      },
+      "saving_per_year": {
+        "default": "mdi:calendar-sync"
+      }
+    }
+  }
+}

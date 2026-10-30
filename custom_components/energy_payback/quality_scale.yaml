@@ -1,0 +1,122 @@
+# Self-assessment against Home Assistant's integration quality scale.
+# The scale is awarded to core integrations only; this file records how a
+# custom integration measures up to it.
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: The integration has no actions.
+  appropriate-polling:
+    status: done
+    comment: >
+      Reads the recorder's hourly statistics every 15 minutes, a local database
+      query; new hours appear once an hour. Changes of the energy dashboard
+      trigger an update at once.
+  brands:
+    status: done
+    comment: Custom integration; icon and logo ship in the brand folder.
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency:
+    status: exempt
+    comment: No dependencies beyond Home Assistant itself.
+  docs-actions:
+    status: exempt
+    comment: The integration has no actions.
+  docs-conditions:
+    status: exempt
+    comment: The integration has no conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: The integration has no triggers.
+  entity-event-setup:
+    status: exempt
+    comment: Entities only read the coordinator; they subscribe to no events.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure:
+    status: done
+    comment: >
+      There is no connection to test. The config flow checks that the energy
+      dashboard can be read and has a grid import with a price, and offers only
+      the categories it has data for.
+  test-before-setup:
+    status: done
+    comment: Setup fails with a translated error when the energy dashboard cannot be read.
+  unique-config-entry:
+    status: done
+    comment: single_config_entry; each category is a subentry that exists once.
+
+  # Silver
+  action-exceptions:
+    status: exempt
+    comment: The integration has no actions.
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable:
+    status: done
+    comment: >
+      Entities become unavailable when the energy dashboard cannot be read.
+      A missing meter or price keeps the last figures, with a repair issue, as
+      the product promises.
+  integration-owner: done
+  log-when-unavailable:
+    status: done
+    comment: The data update coordinator logs once on failure and once on recovery.
+  parallel-updates: done
+  reauthentication-flow:
+    status: exempt
+    comment: No credentials.
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: Nothing to discover; the integration reads Home Assistant's own energy dashboard.
+  discovery-update-info:
+    status: exempt
+    comment: Nothing to discover.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: done
+    comment: A category added later gets its device without a restart.
+  entity-category:
+    status: exempt
+    comment: All entities are primary results; none is configuration or diagnostic.
+  entity-device-class: done
+  entity-disabled-by-default:
+    status: exempt
+    comment: Every entity is a headline figure the card shows.
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow:
+    status: done
+    comment: Each category has a reconfigure flow; the household entry itself has no settings.
+  repair-issues: done
+  stale-devices:
+    status: done
+    comment: Removing a category removes its device and entities.
+
+  # Platinum
+  async-dependency:
+    status: exempt
+    comment: No library; everything runs in Home Assistant's event loop or the recorder's executor.
+  inject-websession:
+    status: exempt
+    comment: No HTTP requests.
+  strict-typing: done

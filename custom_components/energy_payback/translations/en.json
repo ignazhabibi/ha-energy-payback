@@ -1,0 +1,496 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Energy Payback",
+        "description": "Found in the energy dashboard:\n- Electricity price: {price}\n- Feed-in compensation: {feed_in}\n- Solar: {solar}\n- Individual devices: {devices}\n\nThe integration keeps reading these from the energy dashboard. When you change something there, it uses the new setup from then on. Heat pump and wallbox need their meters under individual devices in the [energy dashboard](/config/energy).",
+        "data": {
+          "categories": "What should be evaluated?"
+        },
+        "data_description": {
+          "categories": "You can add more categories later on the integration page."
+        }
+      },
+      "pv": {
+        "title": "PV plant",
+        "description": "From the energy dashboard: solar production, feed-in with compensation, grid import with electricity price. Only what Home Assistant does not know is asked here.",
+        "data": {
+          "investment": "Investment (optional)",
+          "commissioned": "In operation since (optional)"
+        },
+        "data_description": {
+          "investment": "What it cost. The card then shows how far it has paid for itself.",
+          "commissioned": "Empty: from the beginning of the solar data ({data_since}). If the plant is older, enter the real date."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced",
+            "data": {
+              "investment_entity": "Investment from an entity (optional)"
+            },
+            "data_description": {
+              "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts."
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Heat pump instead of a gas boiler",
+        "description": "From the energy dashboard: grid import with electricity price. Saving: gas for the same heat, minus the heat pump's electricity.",
+        "data": {
+          "meters": "Electricity meters",
+          "heat_meters": "Heat meters (optional)",
+          "scop": "SCOP",
+          "gas_price": "Gas price",
+          "investment": "Extra cost over a gas boiler (optional)",
+          "commissioned": "In operation since (optional)"
+        },
+        "data_description": {
+          "meters": "From the individual devices of the energy dashboard. Choose all that belong to it, for example heating and hot water.",
+          "heat_meters": "Without one: heat = electricity × SCOP.",
+          "scop": "Only used without a heat meter, or before it was installed. Usually 3 to 4.5.",
+          "gas_price": "What a kilowatt-hour of gas would cost today. Also used for the computed past.",
+          "investment": "What it cost. The card then shows how far it has paid for itself.",
+          "commissioned": "Empty: from the first data of the electricity meters."
+        },
+        "sections": {
+          "assumptions": {
+            "name": "Assumptions",
+            "data": {
+              "boiler_efficiency": "Gas boiler efficiency"
+            },
+            "data_description": {
+              "boiler_efficiency": "The share of the gas's energy that becomes heat."
+            }
+          },
+          "advanced": {
+            "name": "Advanced",
+            "data": {
+              "gas_price_entity": "Gas price from an entity (optional)",
+              "investment_entity": "Investment from an entity (optional)",
+              "grid": "Electricity tariff"
+            },
+            "data_description": {
+              "gas_price_entity": "For example a number helper or your supplier's price sensor. It takes precedence; when it is unavailable, the fixed price counts.",
+              "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts.",
+              "grid": "The grid connection whose price the device pays, for example a separate heat pump tariff."
+            }
+          }
+        }
+      },
+      "wallbox": {
+        "title": "Electric car instead of a combustion car",
+        "description": "From the energy dashboard: grid import with electricity price. Saving: fuel for the same distance, minus the charging electricity.",
+        "data": {
+          "meters": "Electricity meters",
+          "fuel_price": "Fuel price",
+          "investment": "Extra cost over a combustion car (optional)",
+          "commissioned": "First electric car since (optional)"
+        },
+        "data_description": {
+          "meters": "From the individual devices of the energy dashboard. Choose all that belong to it, for example heating and hot water.",
+          "fuel_price": "What a litre would cost today. Also used for the computed past.",
+          "investment": "What it cost. The card then shows how far it has paid for itself.",
+          "commissioned": "Empty: from the first charge in the data."
+        },
+        "sections": {
+          "assumptions": {
+            "name": "Assumptions",
+            "data": {
+              "combustion_consumption": "Consumption of the combustion car",
+              "ev_consumption": "Consumption of the electric car"
+            },
+            "data_description": {
+              "combustion_consumption": "The car the electric car replaces. With several cars, an average.",
+              "ev_consumption": "Measured at the wallbox, with charging losses. With several cars, an average."
+            }
+          },
+          "advanced": {
+            "name": "Advanced",
+            "data": {
+              "fuel_price_entity": "Fuel price from an entity (optional)",
+              "investment_entity": "Investment from an entity (optional)",
+              "grid": "Electricity tariff"
+            },
+            "data_description": {
+              "fuel_price_entity": "For example a number helper or a fuel price sensor. It takes precedence; when it is unavailable, the fixed price counts.",
+              "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts.",
+              "grid": "The grid connection whose price the device pays, for example a separate heat pump tariff."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "meters_required": "Choose at least one meter.",
+      "commissioned_in_future": "The date lies in the future.",
+      "categories_required": "Choose at least one category."
+    },
+    "abort": {
+      "no_energy_dashboard": "The energy dashboard has no grid import with an electricity price. Energy Payback calculates with them; please set them up in the [energy dashboard](/config/energy) first.",
+      "nothing_to_evaluate": "The energy dashboard has neither solar production nor individual devices. Add your PV plant, or the meters of your heat pump or wallbox, in the [energy dashboard](/config/energy) first.",
+      "energy_interface": "Energy Payback cannot read the energy dashboard of this Home Assistant version. Please look for an update of Energy Payback."
+    },
+    "create_entry": {
+      "default": "The past is now being computed in the background; this usually takes less than a minute. Add the card \"Energy Payback\" from the card picker of any dashboard."
+    }
+  },
+  "config_subentries": {
+    "pv": {
+      "entry_type": "PV plant",
+      "initiate_flow": {
+        "user": "Add PV plant"
+      },
+      "step": {
+        "user": {
+          "title": "PV plant",
+          "description": "From the energy dashboard: solar production, feed-in with compensation, grid import with electricity price. Only what Home Assistant does not know is asked here.",
+          "data": {
+            "investment": "Investment (optional)",
+            "commissioned": "In operation since (optional)"
+          },
+          "data_description": {
+            "investment": "What it cost. The card then shows how far it has paid for itself.",
+            "commissioned": "Empty: from the beginning of the solar data ({data_since}). If the plant is older, enter the real date."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "investment_entity": "Investment from an entity (optional)"
+              },
+              "data_description": {
+                "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "PV plant",
+          "description": "New prices and investments apply from the next full hour; what was already computed stays. Other changes, such as the meters, an assumption, or \"In operation since\", compute the category again.\n\nFrom the energy dashboard: solar production, feed-in with compensation, grid import with electricity price. Only what Home Assistant does not know is asked here.",
+          "data": {
+            "investment": "Investment (optional)",
+            "commissioned": "In operation since (optional)"
+          },
+          "data_description": {
+            "investment": "What it cost. The card then shows how far it has paid for itself.",
+            "commissioned": "Empty: from the beginning of the solar data ({data_since}). If the plant is older, enter the real date."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "investment_entity": "Investment from an entity (optional)"
+              },
+              "data_description": {
+                "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "meters_required": "Choose at least one meter.",
+        "commissioned_in_future": "The date lies in the future.",
+        "categories_required": "Choose at least one category."
+      },
+      "abort": {
+        "energy_interface": "Energy Payback cannot read the energy dashboard of this Home Assistant version. Please look for an update of Energy Payback.",
+        "already_configured": "This category is already set up. To change it, use Reconfigure on it.",
+        "not_available": "The energy dashboard does not provide the data for this category. It needs solar production for the PV plant, and individual devices for heat pump and wallbox."
+      }
+    },
+    "heat_pump": {
+      "entry_type": "Heat pump",
+      "initiate_flow": {
+        "user": "Add heat pump"
+      },
+      "step": {
+        "user": {
+          "title": "Heat pump instead of a gas boiler",
+          "description": "From the energy dashboard: grid import with electricity price. Saving: gas for the same heat, minus the heat pump's electricity.",
+          "data": {
+            "meters": "Electricity meters",
+            "heat_meters": "Heat meters (optional)",
+            "scop": "SCOP",
+            "gas_price": "Gas price",
+            "investment": "Extra cost over a gas boiler (optional)",
+            "commissioned": "In operation since (optional)"
+          },
+          "data_description": {
+            "meters": "From the individual devices of the energy dashboard. Choose all that belong to it, for example heating and hot water.",
+            "heat_meters": "Without one: heat = electricity × SCOP.",
+            "scop": "Only used without a heat meter, or before it was installed. Usually 3 to 4.5.",
+            "gas_price": "What a kilowatt-hour of gas would cost today. Also used for the computed past.",
+            "investment": "What it cost. The card then shows how far it has paid for itself.",
+            "commissioned": "Empty: from the first data of the electricity meters."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Assumptions",
+              "data": {
+                "boiler_efficiency": "Gas boiler efficiency"
+              },
+              "data_description": {
+                "boiler_efficiency": "The share of the gas's energy that becomes heat."
+              }
+            },
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "gas_price_entity": "Gas price from an entity (optional)",
+                "investment_entity": "Investment from an entity (optional)",
+                "grid": "Electricity tariff"
+              },
+              "data_description": {
+                "gas_price_entity": "For example a number helper or your supplier's price sensor. It takes precedence; when it is unavailable, the fixed price counts.",
+                "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts.",
+                "grid": "The grid connection whose price the device pays, for example a separate heat pump tariff."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Heat pump instead of a gas boiler",
+          "description": "New prices and investments apply from the next full hour; what was already computed stays. Other changes, such as the meters, an assumption, or \"In operation since\", compute the category again.\n\nFrom the energy dashboard: grid import with electricity price. Saving: gas for the same heat, minus the heat pump's electricity.",
+          "data": {
+            "meters": "Electricity meters",
+            "heat_meters": "Heat meters (optional)",
+            "scop": "SCOP",
+            "gas_price": "Gas price",
+            "investment": "Extra cost over a gas boiler (optional)",
+            "commissioned": "In operation since (optional)"
+          },
+          "data_description": {
+            "meters": "From the individual devices of the energy dashboard. Choose all that belong to it, for example heating and hot water.",
+            "heat_meters": "Without one: heat = electricity × SCOP.",
+            "scop": "Only used without a heat meter, or before it was installed. Usually 3 to 4.5.",
+            "gas_price": "What a kilowatt-hour of gas would cost today. Also used for the computed past.",
+            "investment": "What it cost. The card then shows how far it has paid for itself.",
+            "commissioned": "Empty: from the first data of the electricity meters."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Assumptions",
+              "data": {
+                "boiler_efficiency": "Gas boiler efficiency"
+              },
+              "data_description": {
+                "boiler_efficiency": "The share of the gas's energy that becomes heat."
+              }
+            },
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "gas_price_entity": "Gas price from an entity (optional)",
+                "investment_entity": "Investment from an entity (optional)",
+                "grid": "Electricity tariff"
+              },
+              "data_description": {
+                "gas_price_entity": "For example a number helper or your supplier's price sensor. It takes precedence; when it is unavailable, the fixed price counts.",
+                "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts.",
+                "grid": "The grid connection whose price the device pays, for example a separate heat pump tariff."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "meters_required": "Choose at least one meter.",
+        "commissioned_in_future": "The date lies in the future.",
+        "categories_required": "Choose at least one category."
+      },
+      "abort": {
+        "energy_interface": "Energy Payback cannot read the energy dashboard of this Home Assistant version. Please look for an update of Energy Payback.",
+        "already_configured": "This category is already set up. To change it, use Reconfigure on it.",
+        "not_available": "The energy dashboard does not provide the data for this category. It needs solar production for the PV plant, and individual devices for heat pump and wallbox."
+      }
+    },
+    "wallbox": {
+      "entry_type": "Wallbox",
+      "initiate_flow": {
+        "user": "Add wallbox"
+      },
+      "step": {
+        "user": {
+          "title": "Electric car instead of a combustion car",
+          "description": "From the energy dashboard: grid import with electricity price. Saving: fuel for the same distance, minus the charging electricity.",
+          "data": {
+            "meters": "Electricity meters",
+            "fuel_price": "Fuel price",
+            "investment": "Extra cost over a combustion car (optional)",
+            "commissioned": "First electric car since (optional)"
+          },
+          "data_description": {
+            "meters": "From the individual devices of the energy dashboard. Choose all that belong to it, for example heating and hot water.",
+            "fuel_price": "What a litre would cost today. Also used for the computed past.",
+            "investment": "What it cost. The card then shows how far it has paid for itself.",
+            "commissioned": "Empty: from the first charge in the data."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Assumptions",
+              "data": {
+                "combustion_consumption": "Consumption of the combustion car",
+                "ev_consumption": "Consumption of the electric car"
+              },
+              "data_description": {
+                "combustion_consumption": "The car the electric car replaces. With several cars, an average.",
+                "ev_consumption": "Measured at the wallbox, with charging losses. With several cars, an average."
+              }
+            },
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "fuel_price_entity": "Fuel price from an entity (optional)",
+                "investment_entity": "Investment from an entity (optional)",
+                "grid": "Electricity tariff"
+              },
+              "data_description": {
+                "fuel_price_entity": "For example a number helper or a fuel price sensor. It takes precedence; when it is unavailable, the fixed price counts.",
+                "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts.",
+                "grid": "The grid connection whose price the device pays, for example a separate heat pump tariff."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Electric car instead of a combustion car",
+          "description": "New prices and investments apply from the next full hour; what was already computed stays. Other changes, such as the meters, an assumption, or \"In operation since\", compute the category again.\n\nFrom the energy dashboard: grid import with electricity price. Saving: fuel for the same distance, minus the charging electricity.",
+          "data": {
+            "meters": "Electricity meters",
+            "fuel_price": "Fuel price",
+            "investment": "Extra cost over a combustion car (optional)",
+            "commissioned": "First electric car since (optional)"
+          },
+          "data_description": {
+            "meters": "From the individual devices of the energy dashboard. Choose all that belong to it, for example heating and hot water.",
+            "fuel_price": "What a litre would cost today. Also used for the computed past.",
+            "investment": "What it cost. The card then shows how far it has paid for itself.",
+            "commissioned": "Empty: from the first charge in the data."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Assumptions",
+              "data": {
+                "combustion_consumption": "Consumption of the combustion car",
+                "ev_consumption": "Consumption of the electric car"
+              },
+              "data_description": {
+                "combustion_consumption": "The car the electric car replaces. With several cars, an average.",
+                "ev_consumption": "Measured at the wallbox, with charging losses. With several cars, an average."
+              }
+            },
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "fuel_price_entity": "Fuel price from an entity (optional)",
+                "investment_entity": "Investment from an entity (optional)",
+                "grid": "Electricity tariff"
+              },
+              "data_description": {
+                "fuel_price_entity": "For example a number helper or a fuel price sensor. It takes precedence; when it is unavailable, the fixed price counts.",
+                "investment_entity": "For example a number helper with the running sum of your expenses. When it is unavailable, the fixed amount counts.",
+                "grid": "The grid connection whose price the device pays, for example a separate heat pump tariff."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "meters_required": "Choose at least one meter.",
+        "commissioned_in_future": "The date lies in the future.",
+        "categories_required": "Choose at least one category."
+      },
+      "abort": {
+        "energy_interface": "Energy Payback cannot read the energy dashboard of this Home Assistant version. Please look for an update of Energy Payback.",
+        "already_configured": "This category is already set up. To change it, use Reconfigure on it.",
+        "not_available": "The energy dashboard does not provide the data for this category. It needs solar production for the PV plant, and individual devices for heat pump and wallbox."
+      }
+    }
+  },
+  "device": {
+    "total": {
+      "name": "Energy Payback"
+    },
+    "pv": {
+      "name": "PV plant"
+    },
+    "heat_pump": {
+      "name": "Heat pump"
+    },
+    "wallbox": {
+      "name": "Wallbox"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "saving": {
+        "name": "Saving",
+        "state_attributes": {
+          "category": {
+            "name": "Category"
+          },
+          "calculating": {
+            "name": "Calculating"
+          },
+          "counting_since": {
+            "name": "Counted since"
+          },
+          "commissioned": {
+            "name": "In operation since"
+          },
+          "investment": {
+            "name": "Investment"
+          },
+          "data_complete": {
+            "name": "Data since start of operation"
+          },
+          "yearly_from": {
+            "name": "Yearly figures from"
+          },
+          "assumed_price": {
+            "name": "Assumed price"
+          }
+        }
+      },
+      "payback": {
+        "name": "Paid back"
+      },
+      "saving_per_year": {
+        "name": "Saving per year"
+      },
+      "balance": {
+        "name": "Balance"
+      }
+    }
+  },
+  "exceptions": {
+    "energy_interface": {
+      "message": "Cannot read the energy dashboard: {error}"
+    }
+  },
+  "issues": {
+    "energy_interface": {
+      "title": "Energy Payback cannot read the energy dashboard",
+      "description": "This version of Home Assistant stores the energy dashboard or its statistics in a way Energy Payback does not understand. The savings are unavailable until Energy Payback is updated."
+    },
+    "no_grid_price": {
+      "title": "Energy Payback is missing the electricity price",
+      "description": "The energy dashboard has no grid import with an electricity price anymore. The savings keep their last values until it is set up again in the [energy dashboard](/config/energy)."
+    },
+    "missing_meter": {
+      "title": "{category}: meter missing in the energy dashboard",
+      "description": "The energy dashboard no longer has: {meters}. {category} keeps its last figures until this is fixed. Add the meter back in the [energy dashboard](/config/energy), or choose other meters with Reconfigure on the integration page of Energy Payback."
+    }
+  },
+  "selector": {
+    "categories": {
+      "options": {
+        "pv": "PV plant",
+        "heat_pump": "Heat pump instead of a gas boiler",
+        "wallbox": "Electric car instead of a combustion car"
+      }
+    }
+  }
+}

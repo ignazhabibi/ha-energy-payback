@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+      - run: uv sync --group dev
+      - run: uv pip install "$(grep -o 'home-assistant-frontend==[^"]*' .venv/lib/python3.14/site-packages/homeassistant/components/frontend/manifest.json)"
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy
+      - run: uv run python scripts/translations.py && git diff --exit-code custom_components/energy_payback/translations
+      - run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=95
+
+  card:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: card
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      # The built card is committed, because the Marketplace installs files as published.
+      - run: git diff --exit-code ../custom_components/energy_payback/frontend

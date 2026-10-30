@@ -1,0 +1,68 @@
+[project]
+name = "ha-energy-payback"
+version = "0.1.0"
+description = "Home Assistant integration: what PV, heat pump, and electric car have saved, and when they pay off."
+requires-python = ">=3.14.2"
+license = "MIT"
+
+[dependency-groups]
+dev = [
+  "pytest-homeassistant-custom-component==0.13.375",
+  "mypy",
+  "ruff",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["custom_components.energy_payback"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+files = ["custom_components/energy_payback"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+  "A", "ASYNC", "B", "BLE", "C4", "D", "DTZ", "E", "F", "FLY", "G", "I", "INP",
+  "ISC", "LOG", "N", "PERF", "PGH", "PIE", "PL", "PT", "PYI", "RET", "RSE", "RUF",
+  "S", "SIM", "SLF", "T20", "TID", "TRY", "UP", "W",
+]
+ignore = [
+  "D203",
+  "D213",
+  "E501",    # the formatter decides line length
+  "PLR0912",
+  "PLR0913",
+  "PLR2004",
+  "TRY003",
+  "RUF001",  # × and – are intended in user-facing text
+  "S101",    # asserts narrow types, as in Home Assistant core
+  "PT018",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "SLF001", "ARG001", "D"]
+"scripts/**" = ["E501", "INP001", "T201"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+combine-as-imports = true
+known-first-party = ["custom_components"]
+
+[[tool.mypy.overrides]]
+# Home Assistant re-exports names such as recorder.get_instance without __all__.
+module = ["homeassistant.*"]
+implicit_reexport = true
+
+[tool.uv]
+package = false

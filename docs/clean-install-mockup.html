@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energiebilanz Einrichtung</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap">
+<style>
+/* Drafts of the clean install: Home Assistant's dialogs, pages, and the
+   balance card, approximated with HA's default theme. Not pixel-exact. */
+:root{--bg:#f2f2f2;--card:#fff;--text:#212121;--muted:#6b6b6b;--div:#e0e0e0;--field:#f0f0f0;
+  --primary:#0288d1;--primary-ink:#0277bd;--ok:#2e7d32;--warn-bg:#fff4e5;--warn:#8a5300;
+  --solar:#ff9800;--heat:#8e021b;--gain:#43a047;--shadow:0 6px 24px rgba(0,0,0,.12)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111;--card:#1c1c1c;--text:#e1e1e1;--muted:#9b9b9b;
+  --div:rgba(225,225,225,.14);--field:#2a2a2a;--primary:#03a9f4;--primary-ink:#4fc3f7;--ok:#66bb6a;--warn-bg:#3a2a12;--warn:#ffcc80;
+  --shadow:0 6px 24px rgba(0,0,0,.5)}}
+:root[data-theme="dark"]{--bg:#111;--card:#1c1c1c;--text:#e1e1e1;--muted:#9b9b9b;--div:rgba(225,225,225,.14);--field:#2a2a2a;
+  --primary:#03a9f4;--primary-ink:#4fc3f7;--ok:#66bb6a;--warn-bg:#3a2a12;--warn:#ffcc80;--shadow:0 6px 24px rgba(0,0,0,.5)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/20px Roboto,system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;line-height:36px;font-weight:400;margin:0 0 8px}
+h2{font-size:20px;line-height:28px;font-weight:500;margin:48px 0 4px}
+.lead{color:var(--muted);max-width:760px;margin:0 0 16px}
+.intro{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px;margin-top:16px}
+.box{background:var(--card);border:1px solid var(--div);border-radius:12px;padding:16px}
+.box h3{margin:0 0 8px;font-size:14px;font-weight:500}
+.box ul{margin:0;padding-inline-start:18px}
+.box li+li{margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:32px 24px;margin-top:16px;align-items:start}
+.fig{display:flex;flex-direction:column;gap:10px;min-width:0}
+.step{font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--primary-ink)}
+.cap{font-size:13px;line-height:18px;color:var(--muted)}
+.cap b{color:var(--text);font-weight:500}
+
+/* HA dialog */
+.dlg{background:var(--card);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;width:100%}
+.dlg-h{display:flex;align-items:center;gap:12px;padding:20px 20px 8px}
+.dlg-h h3{flex:1;margin:0;font-size:22px;line-height:28px;font-weight:400}
+.ico{width:24px;height:24px;color:var(--muted);flex:none;display:grid;place-items:center;font-size:18px}
+.dlg-b{padding:4px 24px 8px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{display:flex;justify-content:flex-end;gap:8px;padding:8px 16px 16px}
+.btn{font:inherit;font-weight:500;color:var(--primary-ink);background:none;border:none;padding:10px 16px;border-radius:20px}
+.btn.fill{background:var(--primary);color:#fff}
+.desc p{margin:0}
+.desc p+p,.desc p+ul,.desc ul+p{margin-top:8px}
+.found{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.found li{display:flex;gap:8px}
+.found .ok{color:var(--ok);font-weight:500;flex:none}
+.found .no{color:var(--warn);font-weight:500;flex:none}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:13px;line-height:18px}
+.info{background:color-mix(in srgb,var(--primary) 12%,transparent);border-radius:8px;padding:10px 12px;font-size:13px;line-height:18px}
+a{color:var(--primary-ink)}
+
+/* HA form fields (filled text fields, selectors) */
+.fld{display:flex;flex-direction:column}
+.inp{background:var(--field);border-radius:4px 4px 0 0;border-bottom:1px solid var(--muted);padding:6px 12px 7px;min-height:52px;
+  display:flex;align-items:center;gap:8px}
+.inp .lv{flex:1;min-width:0}
+.inp small{display:block;font-size:12px;line-height:16px;color:var(--muted)}
+.inp .v{font-size:16px;line-height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inp .ph{color:var(--muted)}
+.inp .suf{color:var(--muted);font-size:14px;flex:none}
+.hint{font-size:12px;line-height:16px;color:var(--muted);margin:4px 12px 0}
+.ents{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.ent{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--div);border-radius:16px;padding:2px 10px;font-size:14px;background:var(--card)}
+.ent i{font-style:normal;color:var(--muted)}
+.lbl{font-size:14px;margin-bottom:4px}
+.cb{display:flex;align-items:center;gap:14px;padding:6px 2px}
+.cb .bx{width:18px;height:18px;border:2px solid var(--muted);border-radius:2px;flex:none;display:grid;place-items:center;font-size:13px;line-height:1;color:#fff}
+.cb.on .bx{background:var(--primary);border-color:var(--primary)}
+.cb.off{color:var(--muted)}
+.sec{border:1px solid var(--div);border-radius:12px}
+.sec-h{display:flex;align-items:center;gap:8px;padding:12px 16px;font-weight:500}
+.sec-h span{flex:1}
+.sec-b{padding:0 16px 16px;display:flex;flex-direction:column;gap:16px}
+
+/* Integration page */
+.page{background:var(--card);border:1px solid var(--div);border-radius:12px;overflow:hidden;width:100%}
+.page-t{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--div)}
+.logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#ff9800,#43a047);flex:none}
+.page-t b{display:block;font-size:16px;font-weight:500}
+.page-t small{color:var(--muted)}
+.ent-row{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.ent-row .grow{flex:1;min-width:0}
+.ent-row small{display:block;color:var(--muted);font-size:12px;line-height:16px}
+.sub-h{padding:12px 16px 4px 32px;font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.sub-row{display:flex;align-items:center;gap:12px;padding:8px 16px 8px 32px;position:relative}
+.sub-row .grow{flex:1}
+.sub-row small{display:block;color:var(--muted);font-size:12px;line-height:16px}
+.menu{position:absolute;right:16px;top:36px;background:var(--card);border-radius:8px;box-shadow:var(--shadow);padding:6px 0;z-index:1;min-width:190px;border:1px solid var(--div)}
+.menu div{padding:8px 16px}
+.menu .del{color:#db4437}
+.adds{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--div)}
+.add{border:1px solid var(--div);border-radius:18px;padding:6px 14px;color:var(--primary-ink);font-weight:500}
+
+/* more-info */
+.big{font-size:36px;line-height:44px;font-weight:400}
+.spark{width:100%;height:72px}
+.attrs{display:flex;flex-direction:column;border-top:1px solid var(--div)}
+.attrs div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--div)}
+.attrs span:first-child{color:var(--muted)}
+
+/* Balance card */
+.hc{background:var(--card);border:1px solid var(--div);border-radius:12px;overflow:hidden;width:100%;max-width:440px}
+.hc-h{display:flex;align-items:flex-start;gap:8px;padding:12px 16px 0;font-size:24px;line-height:32px;letter-spacing:-.012em}
+.hc-h .t{flex:1;min-width:0}
+.chip{font-size:14px;font-weight:500;line-height:20px;padding:4px 8px;border-radius:8px;border:1px solid var(--div);letter-spacing:normal;white-space:nowrap}
+.chip:empty{display:none}
+.tool{width:40px;height:40px;margin:-4px -8px 0 0;display:grid;place-items:center;color:var(--muted);flex:none}
+.hc-h:has(.chip:not(:empty)) .tool{margin-top:-6px}
+.hc-s{padding:16px 16px 8px;color:var(--muted)}
+.hc-s:empty{display:none}
+.row{display:flex;gap:16px;padding:12px 16px;border-bottom:1px solid var(--div)}
+.row:last-of-type{border-bottom:none}
+.sw{width:32px;height:16px;margin-top:2px;border-radius:4px;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 50%,transparent);flex:none}
+.row-b{flex:1;min-width:0}
+.line{display:flex;justify-content:space-between;gap:8px}
+.amt{flex:none}
+.amt.wait{color:var(--muted)}
+.sub{margin-top:6px;font-size:12px;line-height:16px;color:var(--muted)}
+.meter{display:flex;align-items:center;gap:8px}
+.bar{flex:1;height:6px;border-radius:4px;background:var(--div);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c)}
+.meter span{flex:none;white-space:nowrap}
+.foot{padding:12px 16px;border-top:1px solid var(--div);font-size:12px;line-height:16px;color:var(--muted)}
+.foot u{text-decoration:underline dotted;text-underline-offset:3px}
+.solar{--c:var(--solar)}.heat{--c:var(--heat)}.gain{--c:var(--gain)}
+</style>
+</head>
+<body>
+<main>
+<h1>Energiebilanz: Erstinstallation</h1>
+<p class="lead">Entwurf des Wegs eines neuen Nutzers: Installation über HACS, Einrichtung der Integration, Bilanz-Karte im Dashboard. Nötig sind weder Helfer noch Vorkenntnisse. »Energiebilanz« ist ein Arbeitstitel. Die Dialoge sind an Home Assistant angelehnt, aber nicht pixelgenau; alle Texte und Zahlen sind Vorschläge.</p>
+
+<div class="intro">
+  <div class="box">
+    <h3>Beispiel-Haushalt</h3>
+    <ul>
+      <li>Das Energie-Dashboard ist seit dem 14.03.2023 eingerichtet: Netz, fester Strompreis, Einspeisevergütung, Solaranlage.</li>
+      <li>Unter »Einzelne Geräte« stehen »Wärmepumpe«, »Wallbox« und »Spülmaschine«.</li>
+      <li>Die Wärmepumpe läuft seit dem 01.09.2024 und hat 9.000 € mehr gekostet als eine Gastherme.</li>
+      <li>Keine Helfer, kein Wärmemengenzähler.</li>
+    </ul>
+  </div>
+  <div class="box">
+    <h3>Leitgedanken des Entwurfs</h3>
+    <ul>
+      <li>Die erste Einrichtung ist ein Assistent: Übersicht, gewählte Kategorien, fertig.</li>
+      <li>Alle Preise und Beträge sind feste Werte im Dialog. Eine Preis-Entität gibt es nur optional unter »Erweitert«.</li>
+      <li>Gerechnet wird ab dem Beginn der Daten. Liegt die Inbetriebnahme später, gilt dieses Datum.</li>
+      <li>Die Vergangenheit rechnet die Integration mit den heute eingetragenen Preisen nach.</li>
+      <li>Eine Amortisation zeigt die Karte nur, wenn die Daten bis zur Inbetriebnahme zurückreichen.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>1 · Einrichten</h2>
+<p class="lead">Unter Einstellungen › Geräte &amp; Dienste › Integration hinzufügen › Energiebilanz.</p>
+<div class="grid">
+
+  <div class="fig">
+    <div class="step">Schritt 1 · Übersicht</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>Energiebilanz einrichten</h3><span class="ico">?</span><span class="ico">✕</span></div>
+      <div class="dlg-b">
+        <div class="desc">
+          <p>Gefunden im Energie-Dashboard:</p>
+          <ul class="found">
+            <li><span class="ok">✓</span>Netz: Bezug und Einspeisung</li>
+            <li><span class="ok">✓</span>Strompreis: fest 0,32 €/kWh</li>
+            <li><span class="ok">✓</span>Einspeisevergütung: fest 0,08 €/kWh</li>
+            <li><span class="ok">✓</span>Solaranlage: Wechselrichter, Daten ab 14.03.2023</li>
+            <li><span class="ok">✓</span>Einzelne Geräte: Wärmepumpe, Wallbox, Spülmaschine</li>
+          </ul>
+          <p>Die Integration liest diese Angaben laufend aus dem Energie-Dashboard. Änderst du dort etwas, rechnet es ab dann damit.</p>
+        </div>
+        <div class="fld">
+          <div class="lbl">Was soll ausgewertet werden?</div>
+          <div class="cb on"><span class="bx">✓</span>PV-Anlage</div>
+          <div class="cb on"><span class="bx">✓</span>Wärmepumpe statt Gastherme</div>
+          <div class="cb on"><span class="bx">✓</span>E-Auto statt Verbrenner</div>
+          <p class="hint">Weitere Kategorien fügst du später auf der Integrationsseite hinzu.</p>
+        </div>
+      </div>
+      <div class="dlg-f"><button class="btn">Weiter</button></div>
+    </div>
+    <p class="cap">Die Liste zeigt, was die Integration aus dem Energie-Dashboard übernimmt. Zur Auswahl steht nur, was damit möglich ist.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">Schritt 2 · PV-Anlage</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>PV-Anlage</h3><span class="ico">?</span><span class="ico">✕</span></div>
+      <div class="dlg-b">
+        <div class="desc"><p>Aus dem Energie-Dashboard: Solarertrag, Einspeisung mit Vergütung, Netzbezug mit Strompreis. Hier steht nur, was Home Assistant nicht weiß.</p></div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>In Betrieb seit (optional)</small><div class="v ph">TT.MM.JJJJ</div></div><span class="ico">▦</span></div>
+          <p class="hint">Leer: ab Beginn der Solardaten (14.03.2023). Ist die Anlage älter, trag das echte Datum ein.</p>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Investition (optional)</small><div class="v">14.500</div></div><span class="suf">€</span></div>
+          <p class="hint">Was die Anlage gekostet hat. Daraus rechnet die Karte, wie weit sie sich bezahlt gemacht hat.</p>
+        </div>
+      </div>
+      <div class="dlg-f"><button class="btn">Weiter</button></div>
+    </div>
+    <p class="cap">Der Hinweis nennt, ab wann Solardaten da sind. Ein leeres Datum heißt: in Betrieb seit Beginn der Daten.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">Schritt 3 · Wärmepumpe</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>Wärmepumpe statt Gastherme</h3><span class="ico">?</span><span class="ico">✕</span></div>
+      <div class="dlg-b">
+        <div class="desc"><p>Aus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Gas für dieselbe Wärme minus Strom der Wärmepumpe.</p></div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Stromzähler der Wärmepumpe</small><div class="ents"><span class="ent">Wärmepumpe <i>✕</i></span></div></div><span class="ico">▾</span></div>
+          <p class="hint">Aus den einzelnen Geräten des Energie-Dashboards.</p>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Wärmemengenzähler (optional)</small><div class="v ph">Entität wählen</div></div><span class="ico">▾</span></div>
+          <p class="hint">Ohne Zähler gilt: Wärme = Strom × SCOP.</p>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>SCOP</small><div class="v">3,8</div></div></div>
+          <p class="hint">Nur ohne Wärmemengenzähler nötig. Üblich sind 3 bis 4,5.</p>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Gaspreis</small><div class="v">0,11</div></div><span class="suf">€/kWh</span></div>
+          <p class="hint">Was eine Kilowattstunde Gas heute kosten würde. Gilt auch für die nachgerechnete Vergangenheit.</p>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Mehrpreis gegenüber Gastherme (optional)</small><div class="v">9.000</div></div><span class="suf">€</span></div>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>In Betrieb seit (optional)</small><div class="v">01.09.2024</div></div><span class="ico">▦</span></div>
+          <p class="hint">Leer: ab den ersten Daten des Stromzählers.</p>
+        </div>
+        <div class="sec"><div class="sec-h"><span>Annahmen</span>▸</div></div>
+        <div class="sec"><div class="sec-h"><span>Erweitert</span>▸</div></div>
+      </div>
+      <div class="dlg-f"><button class="btn">Weiter</button></div>
+    </div>
+    <p class="cap">Zur Auswahl stehen nur die einzelnen Geräte aus dem Energie-Dashboard. »Annahmen« (Wirkungsgrad der Gastherme, 92 %) und »Erweitert« (Gaspreis aus einer Entität) sind eingeklappt.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">Schritt 4 · E-Auto</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>E-Auto statt Verbrenner</h3><span class="ico">?</span><span class="ico">✕</span></div>
+      <div class="dlg-b">
+        <div class="desc"><p>Aus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Sprit für dieselben Kilometer minus Ladestrom.</p></div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Zähler der Wallbox</small><div class="ents"><span class="ent">Wallbox <i>✕</i></span></div></div><span class="ico">▾</span></div>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Spritpreis</small><div class="v">1,75</div></div><span class="suf">€/l</span></div>
+          <p class="hint">Gilt auch für die nachgerechnete Vergangenheit.</p>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Mehrpreis gegenüber Verbrenner (optional)</small><div class="v ph">0</div></div><span class="suf">€</span></div>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Erstes E-Auto seit (optional)</small><div class="v ph">TT.MM.JJJJ</div></div><span class="ico">▦</span></div>
+          <p class="hint">Leer: ab dem ersten Ladevorgang in den Daten.</p>
+        </div>
+        <div class="sec">
+          <div class="sec-h"><span>Annahmen</span>▾</div>
+          <div class="sec-b">
+            <div class="fld"><div class="inp"><div class="lv"><small>Verbrauch Verbrenner</small><div class="v">7</div></div><span class="suf">l/100 km</span></div></div>
+            <div class="fld"><div class="inp"><div class="lv"><small>Verbrauch E-Auto</small><div class="v">20</div></div><span class="suf">kWh/100 km</span></div>
+              <p class="hint">Ab Wallbox gemessen, mit Ladeverlusten.</p></div>
+          </div>
+        </div>
+        <div class="sec"><div class="sec-h"><span>Erweitert</span>▸</div></div>
+      </div>
+      <div class="dlg-f"><button class="btn">Fertig</button></div>
+    </div>
+    <p class="cap">Die Annahmen haben sinnvolle Standardwerte. Wer nichts ändert, muss sie nie öffnen.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">Schritt 5 · Fertig</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>Erfolg</h3><span class="ico">✕</span></div>
+      <div class="dlg-b">
+        <div class="desc">
+          <p>Die Energiebilanz ist eingerichtet. Die Daten ab dem 14.03.2023 werden jetzt im Hintergrund nachgerechnet; das dauert meist unter einer Minute.</p>
+          <p>Die Karte »Bilanz« findest du im Dashboard unter Karte hinzufügen.</p>
+        </div>
+        <div class="fld"><div class="inp"><div class="lv"><small>PV-Anlage · Bereich</small><div class="v ph">Bereich wählen</div></div><span class="ico">▾</span></div></div>
+        <div class="fld"><div class="inp"><div class="lv"><small>Wärmepumpe · Bereich</small><div class="v ph">Bereich wählen</div></div><span class="ico">▾</span></div></div>
+        <div class="fld"><div class="inp"><div class="lv"><small>E-Auto · Bereich</small><div class="v ph">Bereich wählen</div></div><span class="ico">▾</span></div></div>
+      </div>
+      <div class="dlg-f"><button class="btn">Fertig</button></div>
+    </div>
+    <p class="cap">Alle gewählten Kategorien entstehen auf einmal. Die Bereichsauswahl ist der übliche Abschluss in Home Assistant.</p>
+  </div>
+
+</div>
+
+<h2>2 · Danach in Home Assistant</h2>
+<p class="lead">Jede Kategorie ist ein Gerät mit einem Sensor »Ersparnis« in Euro. Er lässt sich im Verlauf ansehen, in der Statistik auswerten und in Automationen nutzen.</p>
+<div class="grid">
+
+  <div class="fig">
+    <div class="step">Integrationsseite</div>
+    <div class="page">
+      <div class="page-t"><span class="logo"></span><div><b>Energiebilanz</b><small>Integration · 3 Geräte · 3 Entitäten</small></div></div>
+      <div class="ent-row"><div class="grow">Energiebilanz<small>Ersparnis von PV, Wärmepumpe und E-Auto</small></div><span class="ico">⋮</span></div>
+      <div class="sub-h">PV-Anlage</div>
+      <div class="sub-row"><div class="grow">PV-Anlage<small>1 Gerät · gezählt seit März 2023</small></div><span class="ico">⋮</span></div>
+      <div class="sub-h">Wärmepumpe statt Gastherme</div>
+      <div class="sub-row"><div class="grow">Wärmepumpe<small>1 Gerät · gezählt seit Sept. 2024</small></div><span class="ico">⋮</span>
+        <div class="menu"><div>Neu konfigurieren</div><div>Geräte</div><div class="del">Löschen</div></div></div>
+      <div class="sub-h">E-Auto statt Verbrenner</div>
+      <div class="sub-row"><div class="grow">Wallbox<small>1 Gerät · gezählt seit Nov. 2023</small></div><span class="ico">⋮</span></div>
+      <div class="adds"><span class="add">+ PV-Anlage</span><span class="add">+ Wärmepumpe</span><span class="add">+ E-Auto</span></div>
+    </div>
+    <p class="cap">Jede Kategorie hat ihr eigenes Menü; weitere kommen über die Knöpfe unten dazu. Ob es eine Kategorie mehrfach geben kann, etwa zwei Wallboxen, ist offen.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">Sensor »Ersparnis«</div>
+    <div class="dlg">
+      <div class="dlg-h"><span class="ico">✕</span><h3>Wärmepumpe Ersparnis</h3><span class="ico">⋮</span></div>
+      <div class="dlg-b">
+        <div class="big">1.410,32 €</div>
+        <svg class="spark" viewBox="0 0 300 72" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 68 C40 66 60 60 90 52 S150 44 180 30 S240 20 270 10 L300 6" fill="none" stroke="var(--heat)" stroke-width="2"/>
+        </svg>
+        <div class="attrs">
+          <div><span>Gezählt seit</span><span>1. Sept. 2024</span></div>
+          <div><span>Mehrpreis</span><span>9.000 €</span></div>
+          <div><span>Angenommener Gaspreis</span><span>0,11 €/kWh</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">Ein gewöhnlicher Sensor in Euro: mit Verlauf, in der Statistik auswertbar, in Automationen nutzbar. Darunter steht, seit wann gezählt wird und mit welchen Annahmen.</p>
+  </div>
+
+</div>
+
+<h2>3 · Die Bilanz-Karte</h2>
+<p class="lead">Die Karte braucht keine Einstellungen; sie findet die Sensoren der Integration selbst und erscheint sofort. Der Schalter oben rechts wechselt zwischen »Gesamt« und »Pro Jahr«.</p>
+<div class="grid">
+
+  <div class="fig">
+    <div class="step">a · Direkt nach der Einrichtung</div>
+    <div class="hc">
+      <div class="hc-h"><span class="t">Bilanz</span><span class="chip"></span><span class="tool">▦</span></div>
+      <div class="hc-s">Die Daten ab März 2023 werden nachgerechnet …</div>
+      <div class="row solar"><span class="sw"></span><div class="row-b"><div class="line"><span>PV-Anlage</span><span class="amt wait">–</span></div><div class="sub">Wird berechnet …</div></div></div>
+      <div class="row heat"><span class="sw"></span><div class="row-b"><div class="line"><span>Wärmepumpe</span><span class="amt wait">–</span></div><div class="sub">Wird berechnet …</div></div></div>
+      <div class="row gain"><span class="sw"></span><div class="row-b"><div class="line"><span>E-Autos</span><span class="amt wait">–</span></div><div class="sub">Wird berechnet …</div></div></div>
+    </div>
+    <p class="cap">Bis die Sensoren ihre Werte haben, meist unter einer Minute.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">b · Gesamt</div>
+    <div class="hc">
+      <div class="hc-h"><span class="t">Bilanz</span><span class="chip">−13.720 €</span><span class="tool">▦</span></div>
+      <div class="hc-s">9.780&nbsp;€ gespart, 23.500&nbsp;€ investiert</div>
+      <div class="row solar"><span class="sw"></span><div class="row-b"><div class="line"><span>PV-Anlage</span><span class="amt">6.240 €</span></div>
+        <div class="sub"><div class="meter"><div class="bar"><i style="width:43%"></i></div><span>43 % von 14.500 €</span></div></div></div></div>
+      <div class="row heat"><span class="sw"></span><div class="row-b"><div class="line"><span>Wärmepumpe</span><span class="amt">1.410 €</span></div>
+        <div class="sub"><div class="meter"><div class="bar"><i style="width:16%"></i></div><span>16 % von 9.000 €</span></div></div></div></div>
+      <div class="row gain"><span class="sw"></span><div class="row-b"><div class="line"><span>E-Autos</span><span class="amt">2.130 €</span></div>
+        <div class="sub">statt Sprit, ohne Mehrpreis</div></div></div>
+      <div class="foot"><u>Gas 0,11 €/kWh</u> · <u>Sprit 1,75 €/l</u></div>
+    </div>
+    <p class="cap">Die Daten reichen bei allen dreien bis zur Inbetriebnahme, also gibt es Balken und eine Bilanz. Ein Tipp auf die Preise öffnet die Integrationsseite.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">c · Pro Jahr</div>
+    <div class="hc">
+      <div class="hc-h"><span class="t">Bilanz</span><span class="chip">+3.096 €/Jahr</span><span class="tool">Σ</span></div>
+      <div class="hc-s">Im Plus ab etwa April 2031</div>
+      <div class="row solar"><span class="sw"></span><div class="row-b"><div class="line"><span>PV-Anlage</span><span class="amt">1.719 €/Jahr</span></div><div class="sub">amortisiert in etwa 5 Jahren</div></div></div>
+      <div class="row heat"><span class="sw"></span><div class="row-b"><div class="line"><span>Wärmepumpe</span><span class="amt">653 €/Jahr</span></div><div class="sub">amortisiert in etwa 12 Jahren</div></div></div>
+      <div class="row gain"><span class="sw"></span><div class="row-b"><div class="line"><span>E-Autos</span><span class="amt">724 €/Jahr</span></div><div class="sub">statt Sprit</div></div></div>
+      <div class="foot"><u>Gas 0,11 €/kWh</u> · <u>Sprit 1,75 €/l</u></div>
+    </div>
+    <p class="cap">Derselbe Haushalt im Jahresmodus. Jahreswerte gibt es, weil jede Kategorie mehr als zwölf Monate Daten hat.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">d · PV-Anlage älter als die Daten</div>
+    <div class="hc">
+      <div class="hc-h"><span class="t">Bilanz</span><span class="chip">9.780 €</span><span class="tool">▦</span></div>
+      <div class="hc-s">Gespart seit März 2023. Keine Bilanz, weil die PV-Anlage älter ist als die Daten.</div>
+      <div class="row solar"><span class="sw"></span><div class="row-b"><div class="line"><span>PV-Anlage</span><span class="amt">6.240 €</span></div>
+        <div class="sub">gezählt seit März 2023, in Betrieb seit Mai 2019</div></div></div>
+      <div class="row heat"><span class="sw"></span><div class="row-b"><div class="line"><span>Wärmepumpe</span><span class="amt">1.410 €</span></div>
+        <div class="sub"><div class="meter"><div class="bar"><i style="width:16%"></i></div><span>16 % von 9.000 €</span></div></div></div></div>
+      <div class="row gain"><span class="sw"></span><div class="row-b"><div class="line"><span>E-Autos</span><span class="amt">2.130 €</span></div>
+        <div class="sub">statt Sprit, ohne Mehrpreis</div></div></div>
+      <div class="foot"><u>Gas 0,11 €/kWh</u> · <u>Sprit 1,75 €/l</u></div>
+    </div>
+    <p class="cap">Wie b, aber die PV-Anlage ist seit Mai 2019 in Betrieb und Home Assistant hat erst ab März 2023 Daten. Für die PV fehlen vier Jahre, deshalb gibt es dort keinen Balken und keine Bilanz.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">e · Erst wenige Monate Daten, Pro Jahr</div>
+    <div class="hc">
+      <div class="hc-h"><span class="t">Bilanz</span><span class="chip"></span><span class="tool">Σ</span></div>
+      <div class="hc-s">Jahreswerte gibt es nach zwölf Monaten Daten.</div>
+      <div class="row solar"><span class="sw"></span><div class="row-b"><div class="line"><span>PV-Anlage</span><span class="amt wait">–</span></div><div class="sub">Jahreswert ab Juli 2027</div></div></div>
+      <div class="row heat"><span class="sw"></span><div class="row-b"><div class="line"><span>Wärmepumpe</span><span class="amt wait">–</span></div><div class="sub">Jahreswert ab Juli 2027</div></div></div>
+      <div class="foot"><u>Gas 0,11 €/kWh</u></div>
+    </div>
+    <p class="cap">Ein Haushalt, der Home Assistant erst seit Juli 2026 nutzt. Ein Jahreswert aus vier Monaten wäre wegen der Jahreszeiten verzerrt: Die PV läge zu hoch, die Wärmepumpe zu niedrig.</p>
+  </div>
+
+</div>
+
+<h2>4 · Später ändern</h2>
+<p class="lead">Über das Menü des Untereintrags › Neu konfigurieren öffnet sich derselbe Dialog, schon ausgefüllt.</p>
+<div class="grid">
+
+  <div class="fig">
+    <div class="step">Wärmepumpe neu konfigurieren</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>Wärmepumpe statt Gastherme</h3><span class="ico">?</span><span class="ico">✕</span></div>
+      <div class="dlg-b">
+        <div class="info">Neue Preise, Beträge und Annahmen gelten ab der nächsten vollen Stunde; bisher Gerechnetes bleibt. Ein anderes Datum »In Betrieb seit« rechnet die Wärmepumpe neu.</div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Gaspreis</small><div class="v">0,13</div></div><span class="suf">€/kWh</span></div>
+        </div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Mehrpreis gegenüber Gastherme (optional)</small><div class="v">9.000</div></div><span class="suf">€</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec-h"><span>Erweitert</span>▾</div>
+          <div class="sec-b">
+            <div class="fld">
+              <div class="inp"><div class="lv"><small>Gaspreis aus einer Entität (optional)</small><div class="v ph">Entität wählen</div></div><span class="ico">▾</span></div>
+              <p class="hint">Zum Beispiel ein Zahlen-Helfer oder der Preis-Sensor deines Gasversorgers. Er hat Vorrang; ist er nicht verfügbar, gilt der feste Gaspreis.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dlg-f"><button class="btn">Speichern</button></div>
+    </div>
+    <p class="cap">Gezeigt ist nur ein Ausschnitt des Dialogs.</p>
+  </div>
+
+</div>
+
+<h2>5 · Wenn etwas fehlt</h2>
+<div class="grid">
+
+  <div class="fig">
+    <div class="step">Kein Energie-Dashboard</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>Energiebilanz einrichten</h3><span class="ico">✕</span></div>
+      <div class="dlg-b"><div class="desc"><p>Im <a href="#">Energie-Dashboard</a> fehlen Netzbezug oder Strompreis. Die Energiebilanz rechnet mit diesen Angaben; bitte richte sie dort zuerst ein.</p></div></div>
+      <div class="dlg-f"><button class="btn">Schließen</button></div>
+    </div>
+    <p class="cap">Die Einrichtung endet hier; der Link führt direkt zum Energie-Dashboard.</p>
+  </div>
+
+  <div class="fig">
+    <div class="step">Keine einzelnen Geräte</div>
+    <div class="dlg">
+      <div class="dlg-h"><h3>Energiebilanz einrichten</h3><span class="ico">?</span><span class="ico">✕</span></div>
+      <div class="dlg-b">
+        <div class="desc">
+          <p>Gefunden im Energie-Dashboard:</p>
+          <ul class="found">
+            <li><span class="ok">✓</span>Netz: Bezug und Einspeisung</li>
+            <li><span class="ok">✓</span>Strompreis: fest 0,32 €/kWh</li>
+            <li><span class="ok">✓</span>Solaranlage: Wechselrichter, Daten ab 14.03.2023</li>
+            <li><span class="no">–</span>Keine einzelnen Geräte</li>
+          </ul>
+        </div>
+        <div class="note">Für Wärmepumpe und E-Auto braucht es deren Stromzähler unter »Einzelne Geräte« im <a href="#">Energie-Dashboard</a>. Danach kannst du sie hier hinzufügen.</div>
+        <div class="fld">
+          <div class="lbl">Was soll ausgewertet werden?</div>
+          <div class="cb on"><span class="bx">✓</span>PV-Anlage</div>
+        </div>
+      </div>
+      <div class="dlg-f"><button class="btn">Weiter</button></div>
+    </div>
+    <p class="cap">Zur Auswahl steht nur, was geht. Weitere Kategorien lassen sich später hinzufügen, sobald das Energie-Dashboard sie hergibt.</p>
+  </div>
+
+</div>
+</main>
+</body>
+</html>

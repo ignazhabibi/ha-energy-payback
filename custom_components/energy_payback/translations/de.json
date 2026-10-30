@@ -1,0 +1,496 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Energy Payback einrichten",
+        "description": "Gefunden im Energie-Dashboard:\n- Strompreis: {price}\n- Einspeisevergütung: {feed_in}\n- Solar: {solar}\n- Einzelne Geräte: {devices}\n\nDie Integration liest diese Angaben laufend aus dem Energie-Dashboard. Änderst du dort etwas, rechnet sie ab dann damit. Für Wärmepumpe und Wallbox braucht es deren Zähler unter »Einzelne Geräte« im [Energie-Dashboard](/config/energy).",
+        "data": {
+          "categories": "Was soll ausgewertet werden?"
+        },
+        "data_description": {
+          "categories": "Weitere Kategorien fügst du später auf der Integrationsseite hinzu."
+        }
+      },
+      "pv": {
+        "title": "PV-Anlage",
+        "description": "Aus dem Energie-Dashboard: Solarertrag, Einspeisung mit Vergütung, Netzbezug mit Strompreis. Hier steht nur, was Home Assistant nicht weiß.",
+        "data": {
+          "investment": "Investition (optional)",
+          "commissioned": "In Betrieb seit (optional)"
+        },
+        "data_description": {
+          "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+          "commissioned": "Leer: ab Beginn der Solardaten ({data_since}). Ist die Anlage älter, trag das echte Datum ein."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Erweitert",
+            "data": {
+              "investment_entity": "Investition aus einer Entität (optional)"
+            },
+            "data_description": {
+              "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag."
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Wärmepumpe statt Gastherme",
+        "description": "Aus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Gas für dieselbe Wärme minus Strom der Wärmepumpe.",
+        "data": {
+          "meters": "Stromzähler",
+          "heat_meters": "Wärmemengenzähler (optional)",
+          "scop": "SCOP",
+          "gas_price": "Gaspreis",
+          "investment": "Mehrpreis gegenüber Gastherme (optional)",
+          "commissioned": "In Betrieb seit (optional)"
+        },
+        "data_description": {
+          "meters": "Aus den einzelnen Geräten des Energie-Dashboards. Wähle alle, die dazugehören, etwa Heizung und Warmwasser.",
+          "heat_meters": "Ohne Zähler gilt: Wärme = Strom × SCOP.",
+          "scop": "Nur ohne Wärmemengenzähler nötig, oder für die Zeit vor seinem Einbau. Üblich sind 3 bis 4,5.",
+          "gas_price": "Was eine Kilowattstunde Gas heute kosten würde. Gilt auch für die nachgerechnete Vergangenheit.",
+          "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+          "commissioned": "Leer: ab den ersten Daten der Stromzähler."
+        },
+        "sections": {
+          "assumptions": {
+            "name": "Annahmen",
+            "data": {
+              "boiler_efficiency": "Wirkungsgrad der Gastherme"
+            },
+            "data_description": {
+              "boiler_efficiency": "Der Anteil der Energie im Gas, der zu Wärme wird."
+            }
+          },
+          "advanced": {
+            "name": "Erweitert",
+            "data": {
+              "gas_price_entity": "Gaspreis aus einer Entität (optional)",
+              "investment_entity": "Investition aus einer Entität (optional)",
+              "grid": "Stromtarif"
+            },
+            "data_description": {
+              "gas_price_entity": "Zum Beispiel ein Zahlen-Helfer oder der Preis-Sensor deines Gasversorgers. Er hat Vorrang; ist er nicht verfügbar, gilt der feste Preis.",
+              "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag.",
+              "grid": "Der Netzanschluss, dessen Preis das Gerät zahlt, etwa ein eigener Wärmepumpentarif."
+            }
+          }
+        }
+      },
+      "wallbox": {
+        "title": "E-Auto statt Verbrenner",
+        "description": "Aus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Sprit für dieselben Kilometer minus Ladestrom.",
+        "data": {
+          "meters": "Stromzähler",
+          "fuel_price": "Spritpreis",
+          "investment": "Mehrpreis gegenüber Verbrenner (optional)",
+          "commissioned": "Erstes E-Auto seit (optional)"
+        },
+        "data_description": {
+          "meters": "Aus den einzelnen Geräten des Energie-Dashboards. Wähle alle, die dazugehören, etwa Heizung und Warmwasser.",
+          "fuel_price": "Was ein Liter heute kosten würde. Gilt auch für die nachgerechnete Vergangenheit.",
+          "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+          "commissioned": "Leer: ab dem ersten Ladevorgang in den Daten."
+        },
+        "sections": {
+          "assumptions": {
+            "name": "Annahmen",
+            "data": {
+              "combustion_consumption": "Verbrauch Verbrenner",
+              "ev_consumption": "Verbrauch E-Auto"
+            },
+            "data_description": {
+              "combustion_consumption": "Das Auto, das das E-Auto ersetzt. Bei mehreren Autos ein Mittelwert.",
+              "ev_consumption": "Ab Wallbox gemessen, mit Ladeverlusten. Bei mehreren Autos ein Mittelwert."
+            }
+          },
+          "advanced": {
+            "name": "Erweitert",
+            "data": {
+              "fuel_price_entity": "Spritpreis aus einer Entität (optional)",
+              "investment_entity": "Investition aus einer Entität (optional)",
+              "grid": "Stromtarif"
+            },
+            "data_description": {
+              "fuel_price_entity": "Zum Beispiel ein Zahlen-Helfer oder ein Spritpreis-Sensor. Er hat Vorrang; ist er nicht verfügbar, gilt der feste Preis.",
+              "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag.",
+              "grid": "Der Netzanschluss, dessen Preis das Gerät zahlt, etwa ein eigener Wärmepumpentarif."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "meters_required": "Wähle mindestens einen Zähler.",
+      "commissioned_in_future": "Das Datum liegt in der Zukunft.",
+      "categories_required": "Wähle mindestens eine Kategorie."
+    },
+    "abort": {
+      "no_energy_dashboard": "Im Energie-Dashboard fehlen Netzbezug oder Strompreis. Energy Payback rechnet mit diesen Angaben; bitte richte sie zuerst im [Energie-Dashboard](/config/energy) ein.",
+      "nothing_to_evaluate": "Das Energie-Dashboard hat weder Solarertrag noch einzelne Geräte. Trag zuerst die PV-Anlage oder die Zähler von Wärmepumpe oder Wallbox im [Energie-Dashboard](/config/energy) ein.",
+      "energy_interface": "Energy Payback kann das Energie-Dashboard dieser Home-Assistant-Version nicht lesen. Bitte sieh nach, ob es ein Update von Energy Payback gibt."
+    },
+    "create_entry": {
+      "default": "Die Vergangenheit wird jetzt im Hintergrund nachgerechnet; das dauert meist unter einer Minute. Die Karte »Energy Payback« findest du im Dashboard unter »Karte hinzufügen«."
+    }
+  },
+  "config_subentries": {
+    "pv": {
+      "entry_type": "PV-Anlage",
+      "initiate_flow": {
+        "user": "PV-Anlage hinzufügen"
+      },
+      "step": {
+        "user": {
+          "title": "PV-Anlage",
+          "description": "Aus dem Energie-Dashboard: Solarertrag, Einspeisung mit Vergütung, Netzbezug mit Strompreis. Hier steht nur, was Home Assistant nicht weiß.",
+          "data": {
+            "investment": "Investition (optional)",
+            "commissioned": "In Betrieb seit (optional)"
+          },
+          "data_description": {
+            "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+            "commissioned": "Leer: ab Beginn der Solardaten ({data_since}). Ist die Anlage älter, trag das echte Datum ein."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Erweitert",
+              "data": {
+                "investment_entity": "Investition aus einer Entität (optional)"
+              },
+              "data_description": {
+                "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "PV-Anlage",
+          "description": "Neue Preise und Investitionen gelten ab der nächsten vollen Stunde; bisher Gerechnetes bleibt. Andere Änderungen, etwa an den Zählern, an einer Annahme oder an »In Betrieb seit«, rechnen die Kategorie neu.\n\nAus dem Energie-Dashboard: Solarertrag, Einspeisung mit Vergütung, Netzbezug mit Strompreis. Hier steht nur, was Home Assistant nicht weiß.",
+          "data": {
+            "investment": "Investition (optional)",
+            "commissioned": "In Betrieb seit (optional)"
+          },
+          "data_description": {
+            "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+            "commissioned": "Leer: ab Beginn der Solardaten ({data_since}). Ist die Anlage älter, trag das echte Datum ein."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Erweitert",
+              "data": {
+                "investment_entity": "Investition aus einer Entität (optional)"
+              },
+              "data_description": {
+                "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "meters_required": "Wähle mindestens einen Zähler.",
+        "commissioned_in_future": "Das Datum liegt in der Zukunft.",
+        "categories_required": "Wähle mindestens eine Kategorie."
+      },
+      "abort": {
+        "energy_interface": "Energy Payback kann das Energie-Dashboard dieser Home-Assistant-Version nicht lesen. Bitte sieh nach, ob es ein Update von Energy Payback gibt.",
+        "already_configured": "Diese Kategorie ist schon eingerichtet. Ändern kannst du sie mit »Neu konfigurieren«.",
+        "not_available": "Das Energie-Dashboard liefert die Daten für diese Kategorie nicht. Die PV-Anlage braucht einen Solarertrag, Wärmepumpe und Wallbox brauchen einzelne Geräte."
+      }
+    },
+    "heat_pump": {
+      "entry_type": "Wärmepumpe",
+      "initiate_flow": {
+        "user": "Wärmepumpe hinzufügen"
+      },
+      "step": {
+        "user": {
+          "title": "Wärmepumpe statt Gastherme",
+          "description": "Aus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Gas für dieselbe Wärme minus Strom der Wärmepumpe.",
+          "data": {
+            "meters": "Stromzähler",
+            "heat_meters": "Wärmemengenzähler (optional)",
+            "scop": "SCOP",
+            "gas_price": "Gaspreis",
+            "investment": "Mehrpreis gegenüber Gastherme (optional)",
+            "commissioned": "In Betrieb seit (optional)"
+          },
+          "data_description": {
+            "meters": "Aus den einzelnen Geräten des Energie-Dashboards. Wähle alle, die dazugehören, etwa Heizung und Warmwasser.",
+            "heat_meters": "Ohne Zähler gilt: Wärme = Strom × SCOP.",
+            "scop": "Nur ohne Wärmemengenzähler nötig, oder für die Zeit vor seinem Einbau. Üblich sind 3 bis 4,5.",
+            "gas_price": "Was eine Kilowattstunde Gas heute kosten würde. Gilt auch für die nachgerechnete Vergangenheit.",
+            "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+            "commissioned": "Leer: ab den ersten Daten der Stromzähler."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Annahmen",
+              "data": {
+                "boiler_efficiency": "Wirkungsgrad der Gastherme"
+              },
+              "data_description": {
+                "boiler_efficiency": "Der Anteil der Energie im Gas, der zu Wärme wird."
+              }
+            },
+            "advanced": {
+              "name": "Erweitert",
+              "data": {
+                "gas_price_entity": "Gaspreis aus einer Entität (optional)",
+                "investment_entity": "Investition aus einer Entität (optional)",
+                "grid": "Stromtarif"
+              },
+              "data_description": {
+                "gas_price_entity": "Zum Beispiel ein Zahlen-Helfer oder der Preis-Sensor deines Gasversorgers. Er hat Vorrang; ist er nicht verfügbar, gilt der feste Preis.",
+                "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag.",
+                "grid": "Der Netzanschluss, dessen Preis das Gerät zahlt, etwa ein eigener Wärmepumpentarif."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Wärmepumpe statt Gastherme",
+          "description": "Neue Preise und Investitionen gelten ab der nächsten vollen Stunde; bisher Gerechnetes bleibt. Andere Änderungen, etwa an den Zählern, an einer Annahme oder an »In Betrieb seit«, rechnen die Kategorie neu.\n\nAus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Gas für dieselbe Wärme minus Strom der Wärmepumpe.",
+          "data": {
+            "meters": "Stromzähler",
+            "heat_meters": "Wärmemengenzähler (optional)",
+            "scop": "SCOP",
+            "gas_price": "Gaspreis",
+            "investment": "Mehrpreis gegenüber Gastherme (optional)",
+            "commissioned": "In Betrieb seit (optional)"
+          },
+          "data_description": {
+            "meters": "Aus den einzelnen Geräten des Energie-Dashboards. Wähle alle, die dazugehören, etwa Heizung und Warmwasser.",
+            "heat_meters": "Ohne Zähler gilt: Wärme = Strom × SCOP.",
+            "scop": "Nur ohne Wärmemengenzähler nötig, oder für die Zeit vor seinem Einbau. Üblich sind 3 bis 4,5.",
+            "gas_price": "Was eine Kilowattstunde Gas heute kosten würde. Gilt auch für die nachgerechnete Vergangenheit.",
+            "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+            "commissioned": "Leer: ab den ersten Daten der Stromzähler."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Annahmen",
+              "data": {
+                "boiler_efficiency": "Wirkungsgrad der Gastherme"
+              },
+              "data_description": {
+                "boiler_efficiency": "Der Anteil der Energie im Gas, der zu Wärme wird."
+              }
+            },
+            "advanced": {
+              "name": "Erweitert",
+              "data": {
+                "gas_price_entity": "Gaspreis aus einer Entität (optional)",
+                "investment_entity": "Investition aus einer Entität (optional)",
+                "grid": "Stromtarif"
+              },
+              "data_description": {
+                "gas_price_entity": "Zum Beispiel ein Zahlen-Helfer oder der Preis-Sensor deines Gasversorgers. Er hat Vorrang; ist er nicht verfügbar, gilt der feste Preis.",
+                "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag.",
+                "grid": "Der Netzanschluss, dessen Preis das Gerät zahlt, etwa ein eigener Wärmepumpentarif."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "meters_required": "Wähle mindestens einen Zähler.",
+        "commissioned_in_future": "Das Datum liegt in der Zukunft.",
+        "categories_required": "Wähle mindestens eine Kategorie."
+      },
+      "abort": {
+        "energy_interface": "Energy Payback kann das Energie-Dashboard dieser Home-Assistant-Version nicht lesen. Bitte sieh nach, ob es ein Update von Energy Payback gibt.",
+        "already_configured": "Diese Kategorie ist schon eingerichtet. Ändern kannst du sie mit »Neu konfigurieren«.",
+        "not_available": "Das Energie-Dashboard liefert die Daten für diese Kategorie nicht. Die PV-Anlage braucht einen Solarertrag, Wärmepumpe und Wallbox brauchen einzelne Geräte."
+      }
+    },
+    "wallbox": {
+      "entry_type": "Wallbox",
+      "initiate_flow": {
+        "user": "Wallbox hinzufügen"
+      },
+      "step": {
+        "user": {
+          "title": "E-Auto statt Verbrenner",
+          "description": "Aus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Sprit für dieselben Kilometer minus Ladestrom.",
+          "data": {
+            "meters": "Stromzähler",
+            "fuel_price": "Spritpreis",
+            "investment": "Mehrpreis gegenüber Verbrenner (optional)",
+            "commissioned": "Erstes E-Auto seit (optional)"
+          },
+          "data_description": {
+            "meters": "Aus den einzelnen Geräten des Energie-Dashboards. Wähle alle, die dazugehören, etwa Heizung und Warmwasser.",
+            "fuel_price": "Was ein Liter heute kosten würde. Gilt auch für die nachgerechnete Vergangenheit.",
+            "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+            "commissioned": "Leer: ab dem ersten Ladevorgang in den Daten."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Annahmen",
+              "data": {
+                "combustion_consumption": "Verbrauch Verbrenner",
+                "ev_consumption": "Verbrauch E-Auto"
+              },
+              "data_description": {
+                "combustion_consumption": "Das Auto, das das E-Auto ersetzt. Bei mehreren Autos ein Mittelwert.",
+                "ev_consumption": "Ab Wallbox gemessen, mit Ladeverlusten. Bei mehreren Autos ein Mittelwert."
+              }
+            },
+            "advanced": {
+              "name": "Erweitert",
+              "data": {
+                "fuel_price_entity": "Spritpreis aus einer Entität (optional)",
+                "investment_entity": "Investition aus einer Entität (optional)",
+                "grid": "Stromtarif"
+              },
+              "data_description": {
+                "fuel_price_entity": "Zum Beispiel ein Zahlen-Helfer oder ein Spritpreis-Sensor. Er hat Vorrang; ist er nicht verfügbar, gilt der feste Preis.",
+                "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag.",
+                "grid": "Der Netzanschluss, dessen Preis das Gerät zahlt, etwa ein eigener Wärmepumpentarif."
+              }
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "E-Auto statt Verbrenner",
+          "description": "Neue Preise und Investitionen gelten ab der nächsten vollen Stunde; bisher Gerechnetes bleibt. Andere Änderungen, etwa an den Zählern, an einer Annahme oder an »In Betrieb seit«, rechnen die Kategorie neu.\n\nAus dem Energie-Dashboard: Netzbezug mit Strompreis. Gerechnet wird: Sprit für dieselben Kilometer minus Ladestrom.",
+          "data": {
+            "meters": "Stromzähler",
+            "fuel_price": "Spritpreis",
+            "investment": "Mehrpreis gegenüber Verbrenner (optional)",
+            "commissioned": "Erstes E-Auto seit (optional)"
+          },
+          "data_description": {
+            "meters": "Aus den einzelnen Geräten des Energie-Dashboards. Wähle alle, die dazugehören, etwa Heizung und Warmwasser.",
+            "fuel_price": "Was ein Liter heute kosten würde. Gilt auch für die nachgerechnete Vergangenheit.",
+            "investment": "Was es gekostet hat. Daraus rechnet die Karte, wie weit es sich bezahlt gemacht hat.",
+            "commissioned": "Leer: ab dem ersten Ladevorgang in den Daten."
+          },
+          "sections": {
+            "assumptions": {
+              "name": "Annahmen",
+              "data": {
+                "combustion_consumption": "Verbrauch Verbrenner",
+                "ev_consumption": "Verbrauch E-Auto"
+              },
+              "data_description": {
+                "combustion_consumption": "Das Auto, das das E-Auto ersetzt. Bei mehreren Autos ein Mittelwert.",
+                "ev_consumption": "Ab Wallbox gemessen, mit Ladeverlusten. Bei mehreren Autos ein Mittelwert."
+              }
+            },
+            "advanced": {
+              "name": "Erweitert",
+              "data": {
+                "fuel_price_entity": "Spritpreis aus einer Entität (optional)",
+                "investment_entity": "Investition aus einer Entität (optional)",
+                "grid": "Stromtarif"
+              },
+              "data_description": {
+                "fuel_price_entity": "Zum Beispiel ein Zahlen-Helfer oder ein Spritpreis-Sensor. Er hat Vorrang; ist er nicht verfügbar, gilt der feste Preis.",
+                "investment_entity": "Zum Beispiel ein Zahlen-Helfer mit der laufenden Summe deiner Ausgaben. Ist er nicht verfügbar, gilt der feste Betrag.",
+                "grid": "Der Netzanschluss, dessen Preis das Gerät zahlt, etwa ein eigener Wärmepumpentarif."
+              }
+            }
+          }
+        }
+      },
+      "error": {
+        "meters_required": "Wähle mindestens einen Zähler.",
+        "commissioned_in_future": "Das Datum liegt in der Zukunft.",
+        "categories_required": "Wähle mindestens eine Kategorie."
+      },
+      "abort": {
+        "energy_interface": "Energy Payback kann das Energie-Dashboard dieser Home-Assistant-Version nicht lesen. Bitte sieh nach, ob es ein Update von Energy Payback gibt.",
+        "already_configured": "Diese Kategorie ist schon eingerichtet. Ändern kannst du sie mit »Neu konfigurieren«.",
+        "not_available": "Das Energie-Dashboard liefert die Daten für diese Kategorie nicht. Die PV-Anlage braucht einen Solarertrag, Wärmepumpe und Wallbox brauchen einzelne Geräte."
+      }
+    }
+  },
+  "device": {
+    "total": {
+      "name": "Energy Payback"
+    },
+    "pv": {
+      "name": "PV-Anlage"
+    },
+    "heat_pump": {
+      "name": "Wärmepumpe"
+    },
+    "wallbox": {
+      "name": "Wallbox"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "saving": {
+        "name": "Ersparnis",
+        "state_attributes": {
+          "category": {
+            "name": "Kategorie"
+          },
+          "calculating": {
+            "name": "Wird berechnet"
+          },
+          "counting_since": {
+            "name": "Gezählt seit"
+          },
+          "commissioned": {
+            "name": "In Betrieb seit"
+          },
+          "investment": {
+            "name": "Investition"
+          },
+          "data_complete": {
+            "name": "Daten seit Inbetriebnahme"
+          },
+          "yearly_from": {
+            "name": "Jahreswerte ab"
+          },
+          "assumed_price": {
+            "name": "Angenommener Preis"
+          }
+        }
+      },
+      "payback": {
+        "name": "Amortisiert"
+      },
+      "saving_per_year": {
+        "name": "Ersparnis pro Jahr"
+      },
+      "balance": {
+        "name": "Bilanz"
+      }
+    }
+  },
+  "exceptions": {
+    "energy_interface": {
+      "message": "Das Energie-Dashboard kann nicht gelesen werden: {error}"
+    }
+  },
+  "issues": {
+    "energy_interface": {
+      "title": "Energy Payback kann das Energie-Dashboard nicht lesen",
+      "description": "Diese Home-Assistant-Version speichert das Energie-Dashboard oder seine Statistiken so, wie Energy Payback es nicht versteht. Die Ersparnisse sind nicht verfügbar, bis Energy Payback aktualisiert ist."
+    },
+    "no_grid_price": {
+      "title": "Energy Payback fehlt der Strompreis",
+      "description": "Im Energie-Dashboard gibt es keinen Netzbezug mit Strompreis mehr. Die Ersparnisse behalten ihre letzten Werte, bis er im [Energie-Dashboard](/config/energy) wieder eingerichtet ist."
+    },
+    "missing_meter": {
+      "title": "{category}: Zähler fehlt im Energie-Dashboard",
+      "description": "Im Energie-Dashboard fehlt: {meters}. {category} behält die letzten Werte, bis das behoben ist. Trag den Zähler im [Energie-Dashboard](/config/energy) wieder ein, oder wähle mit »Neu konfigurieren« auf der Integrationsseite von Energy Payback andere Zähler."
+    }
+  },
+  "selector": {
+    "categories": {
+      "options": {
+        "pv": "PV-Anlage",
+        "heat_pump": "Wärmepumpe statt Gastherme",
+        "wallbox": "E-Auto statt Verbrenner"
+      }
+    }
+  }
+}

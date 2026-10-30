@@ -1,0 +1,14 @@
+{
+  "domain": "energy_payback",
+  "name": "Energy Payback",
+  "codeowners": ["@ignazhabibi"],
+  "config_flow": true,
+  "dependencies": ["energy", "frontend", "http", "recorder"],
+  "documentation": "https://github.com/ignazhabibi/ha-energy-payback",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/ignazhabibi/ha-energy-payback/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
