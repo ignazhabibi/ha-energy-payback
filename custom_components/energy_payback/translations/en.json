@@ -129,7 +129,8 @@
     "abort": {
       "no_energy_dashboard": "The energy dashboard has no grid import with an electricity price. Energy Payback calculates with them; please set them up in the [energy dashboard](/config/energy) first.",
       "nothing_to_evaluate": "The energy dashboard has neither solar production nor individual devices. Add your PV plant, or the meters of your heat pump or wallbox, in the [energy dashboard](/config/energy) first.",
-      "energy_interface": "Energy Payback cannot read the energy dashboard of this Home Assistant version. Please look for an update of Energy Payback."
+      "energy_interface": "Energy Payback cannot read the energy dashboard of this Home Assistant version. Please look for an update of Energy Payback.",
+      "single_instance_allowed": "Energy Payback is already set up. Add more categories on its integration page."
     },
     "create_entry": {
       "default": "The past is now being computed in the background; this usually takes less than a minute. Add the card \"Energy Payback\" from the card picker of any dashboard."

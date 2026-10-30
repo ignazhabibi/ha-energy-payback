@@ -129,7 +129,8 @@
     "abort": {
       "no_energy_dashboard": "Im Energie-Dashboard fehlen Netzbezug oder Strompreis. Energy Payback rechnet mit diesen Angaben; bitte richte sie zuerst im [Energie-Dashboard](/config/energy) ein.",
       "nothing_to_evaluate": "Das Energie-Dashboard hat weder Solarertrag noch einzelne Geräte. Trag zuerst die PV-Anlage oder die Zähler von Wärmepumpe oder Wallbox im [Energie-Dashboard](/config/energy) ein.",
-      "energy_interface": "Energy Payback kann das Energie-Dashboard dieser Home-Assistant-Version nicht lesen. Bitte sieh nach, ob es ein Update von Energy Payback gibt."
+      "energy_interface": "Energy Payback kann das Energie-Dashboard dieser Home-Assistant-Version nicht lesen. Bitte sieh nach, ob es ein Update von Energy Payback gibt.",
+      "single_instance_allowed": "Energy Payback ist schon eingerichtet. Weitere Kategorien fügst du auf seiner Integrationsseite hinzu."
     },
     "create_entry": {
       "default": "Die Vergangenheit wird jetzt im Hintergrund nachgerechnet; das dauert meist unter einer Minute. Die Karte »Energy Payback« findest du im Dashboard unter »Karte hinzufügen«."
