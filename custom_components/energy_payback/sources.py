@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.db_schema import StatisticsShortTerm
 from homeassistant.components.recorder.history import state_changes_during_period
 from homeassistant.components.recorder.models import (
     StatisticData,
@@ -31,6 +32,7 @@ from homeassistant.util import dt as dt_util
 
 ENERGY_DOMAIN = "energy"
 HOUR = 3600.0
+SHORT_TERM_PERIOD = 300.0
 # Statistics before this date are not looked for.
 _EARLIEST = datetime(2000, 1, 1, tzinfo=dt_util.UTC)
 
@@ -429,9 +431,10 @@ def async_replace_history(
 
     rows holds (hour start, cumulative saving at the end of that hour). The
     recorder then continues from the last row with the sensor's own states.
-    Both jobs run in the recorder's queue, in this order.
+    All jobs run in the recorder's queue, in this order.
     """
-    get_instance(hass).async_clear_statistics([entity_id])
+    recorder = get_instance(hass)
+    recorder.async_clear_statistics([entity_id])
     metadata = StatisticMetaData(
         mean_type=StatisticMeanType.NONE,
         has_sum=True,
@@ -445,5 +448,24 @@ def async_replace_history(
         StatisticData(start=dt_util.utc_from_timestamp(start), state=value, sum=value)
         for start, value in rows
     ]
-    if statistics:
-        async_import_statistics(hass, metadata, statistics)
+    if not statistics:
+        return
+    async_import_statistics(hass, metadata, statistics)
+    # The recorder continues the sum from the latest five-minute statistics,
+    # which the clearing removed; without them it would start again at zero.
+    # The last computed value becomes the latest five-minute row as well.
+    last = statistics[-1]
+    latest_period = (
+        dt_util.utcnow().timestamp() // SHORT_TERM_PERIOD - 1
+    ) * SHORT_TERM_PERIOD
+    recorder.async_import_statistics(
+        metadata,
+        [
+            StatisticData(
+                start=dt_util.utc_from_timestamp(latest_period),
+                state=last["state"],
+                sum=last["sum"],
+            )
+        ],
+        StatisticsShortTerm,
+    )

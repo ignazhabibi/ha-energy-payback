@@ -148,6 +148,22 @@ async def test_history_is_written(
     assert sums[-1] == pytest.approx(COUNTED * PV_PER_HOUR)
     assert sums[1] == pytest.approx(PV_PER_HOUR)
 
+    # The recorder continues from the latest five-minute row, so it holds the
+    # computed total too instead of starting again at zero.
+    short_term = await get_instance(hass).async_add_executor_job(
+        statistics_during_period,
+        hass,
+        data_start,
+        None,
+        {"sensor.pv_plant_saving"},
+        "5minute",
+        None,
+        {"state", "sum"},
+    )
+    latest = short_term["sensor.pv_plant_saving"][-1]
+    assert latest["sum"] == pytest.approx(COUNTED * PV_PER_HOUR)
+    assert latest["state"] == pytest.approx(COUNTED * PV_PER_HOUR)
+
 
 @pytest.mark.usefixtures("energy")
 async def test_progress_survives_restart(
