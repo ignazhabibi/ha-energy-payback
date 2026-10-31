@@ -72,19 +72,28 @@ FLOWS = {
     "sensor.washer": 0.2,
 }
 
-PV_DATA: dict[str, Any] = {"investment": 10000}
+# setup_at 0: all test data lies after the setup, so the current values count.
+PV_DATA: dict[str, Any] = {"investment": 10000, "setup_at": 0}
+HEAT_PUMP_VALUES: dict[str, Any] = {"price": 0.10, "scop": 4.0}
 HEAT_PUMP_DATA: dict[str, Any] = {
     "meters": ["sensor.heat_pump"],
-    "scop": 4.0,
-    "gas_price": 0.10,
-    "boiler_efficiency": 92,
+    "heat_meters": [],
+    "heating": "gas",
     "investment": 9000,
+    "setup_at": 0,
+    "before": HEAT_PUMP_VALUES,
+    "current": HEAT_PUMP_VALUES,
+}
+WALLBOX_VALUES: dict[str, Any] = {
+    "price": 1.80,
+    "ev_consumption": 20,
+    "combustion_consumption": 7,
 }
 WALLBOX_DATA: dict[str, Any] = {
     "meters": ["sensor.wallbox"],
-    "fuel_price": 1.80,
-    "ev_consumption": 20,
-    "combustion_consumption": 7,
+    "setup_at": 0,
+    "before": WALLBOX_VALUES,
+    "current": WALLBOX_VALUES,
 }
 # Saving per hour of each category with FLOWS and the data above.
 PV_PER_HOUR = (2.0 - 0.5) * GRID_PRICE + 0.5 * FEED_IN_PRICE
@@ -183,12 +192,16 @@ async def energy(hass: HomeAssistant, data_start: datetime) -> None:
     await async_wait_recording_done(hass)
 
 
-def make_entry(*categories: tuple[str, dict[str, Any]]) -> MockConfigEntry:
+def make_entry(
+    *categories: tuple[str, dict[str, Any]], version: int = 1, minor_version: int = 2
+) -> MockConfigEntry:
     """Return a config entry with these categories."""
     return MockConfigEntry(
         domain=DOMAIN,
         title="Energy Payback",
         data={},
+        version=version,
+        minor_version=minor_version,
         subentries_data=[
             ConfigSubentryData(
                 subentry_type=category, title=category, data=data, unique_id=category

@@ -114,11 +114,11 @@ class CategorySensor(EnergyPaybackEntity, SensorEntity):
             "category",
             "calculating",
             "counting_since",
-            "commissioned",
             "investment",
-            "data_complete",
             "yearly_from",
-            "assumed_price",
+            "price",
+            "heating",
+            "heat_estimated",
         }
     )
 
@@ -150,22 +150,23 @@ class CategorySensor(EnergyPaybackEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return since when the saving counts and which assumptions it uses."""
+        """Return since when the saving counts and the price it uses now."""
         if self.entity_description.key != "saving" or (result := self._result) is None:
             return None
-        return {
+        attributes: dict[str, Any] = {
             "category": self._category,
             "calculating": result.calculating,
             "counting_since": (
                 result.counting_since.isoformat() if result.counting_since else None
             ),
-            "commissioned": (
-                result.commissioned.isoformat() if result.commissioned else None
-            ),
             "investment": result.investment,
-            "data_complete": result.covered,
             "yearly_from": result.yearly_from.isoformat()
             if result.yearly_from
             else None,
-            "assumed_price": result.price,
         }
+        if result.price is not None:
+            attributes["price"] = result.price
+        if result.heating is not None:
+            attributes["heating"] = result.heating
+            attributes["heat_estimated"] = result.heat_estimated
+        return attributes

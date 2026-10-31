@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energy Payback Onboarding</title>
+<style>
+/* Draft of the setup dialogs, approximated with Home Assistant's default
+   theme. Not pixel-exact; the texts are the point. */
+:root{--bg:#f2f2f2;--card:#fff;--text:#212121;--muted:#6b6b6b;--div:#e0e0e0;--field:#f0f0f0;
+ --primary:#0288d1;--primary-ink:#0277bd;--ok:#2e7d32;--warn-bg:#fff4e5;--warn:#8a5300;--err:#c62828;
+ --tag:#e8f1f8;--shadow:0 6px 24px rgba(0,0,0,.12)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111;--card:#1c1c1c;--text:#e1e1e1;--muted:#9b9b9b;
+ --div:rgba(225,225,225,.14);--field:#2a2a2a;--primary:#03a9f4;--primary-ink:#4fc3f7;--ok:#66bb6a;--warn-bg:#3a2a12;--warn:#ffcc80;
+ --err:#ef9a9a;--tag:#16303f;--shadow:0 6px 24px rgba(0,0,0,.5)}}
+:root[data-theme="dark"]{--bg:#111;--card:#1c1c1c;--text:#e1e1e1;--muted:#9b9b9b;--div:rgba(225,225,225,.14);--field:#2a2a2a;
+ --primary:#03a9f4;--primary-ink:#4fc3f7;--ok:#66bb6a;--warn-bg:#3a2a12;--warn:#ffcc80;--err:#ef9a9a;--tag:#16303f;
+ --shadow:0 6px 24px rgba(0,0,0,.5)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/20px Roboto,system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;line-height:36px;font-weight:400;margin:0 0 8px}
+h2{font-size:20px;line-height:28px;font-weight:500;margin:48px 0 4px}
+.lead{color:var(--muted);max-width:760px;margin:0 0 16px}
+.boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px;margin-top:16px}
+.box{background:var(--card);border:1px solid var(--div);border-radius:12px;padding:16px}
+.box h3{margin:0 0 8px;font-size:14px;font-weight:500}
+.box ul,.box ol{margin:0;padding-inline-start:18px}
+.box li+li{margin-top:4px}
+.phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:12px;margin-top:16px}
+.ph{background:var(--card);border:1px solid var(--div);border-radius:12px;padding:12px 16px}
+.ph b{display:block;margin-bottom:4px}
+.ph small{color:var(--muted)}
+.path{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;align-items:center}
+.path span{background:var(--tag);color:var(--primary-ink);border-radius:14px;padding:3px 10px;font-weight:500;font-size:13px}
+.path i{font-style:normal;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:32px 24px;margin-top:16px;align-items:start}
+.fig{display:flex;flex-direction:column;gap:10px;min-width:0}
+.step{font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--primary-ink)}
+.cap{font-size:13px;line-height:18px;color:var(--muted)}
+.cap b{color:var(--text);font-weight:500}
+.cap ul{margin:4px 0 0;padding-inline-start:18px}
+/* HA dialog */
+.dlg{background:var(--card);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;width:100%}
+.dlg-h{display:flex;align-items:center;gap:12px;padding:20px 20px 8px}
+.dlg-h h3{flex:1;margin:0;font-size:22px;line-height:28px;font-weight:400}
+.ico{width:24px;height:24px;color:var(--muted);flex:none;display:grid;place-items:center;font-size:18px}
+.dlg-b{padding:4px 24px 8px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{display:flex;justify-content:flex-end;gap:8px;padding:8px 16px 16px}
+.btn{font:inherit;font-weight:500;color:var(--primary-ink);background:none;border:none;padding:10px 16px;border-radius:20px}
+.btn.fill{background:var(--primary);color:#fff}
+.desc p{margin:0}
+.desc p+p,.desc p+ul,.desc ul+p{margin-top:8px}
+.found{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.found li{display:flex;gap:8px}
+.found .ok{color:var(--ok);font-weight:500;flex:none;width:12px}
+.found .no{color:var(--muted);font-weight:500;flex:none;width:12px}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:13px;line-height:18px}
+.fld{display:flex;flex-direction:column}
+.inp{background:var(--field);border-radius:4px 4px 0 0;border-bottom:1px solid var(--muted);padding:6px 12px 7px;min-height:52px;
+ display:flex;align-items:center;gap:8px}
+.inp .lv{flex:1;min-width:0}
+.inp small{display:block;font-size:12px;line-height:16px;color:var(--muted)}
+.inp .v{font-size:16px;line-height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inp .ph0{color:var(--muted)}
+.inp .suf{color:var(--muted);font-size:14px;flex:none}
+.fld.bad .inp{border-bottom:2px solid var(--err)}
+.fld.bad small,.fld.bad .hint{color:var(--err)}
+.hint{font-size:12px;line-height:16px;color:var(--muted);margin:4px 12px 0}
+.lbl{font-size:14px;margin-bottom:4px}
+.opt{display:flex;align-items:center;gap:14px;padding:6px 2px}
+.opt .bx{width:18px;height:18px;border:2px solid var(--muted);border-radius:2px;flex:none}
+.opt .rd{width:18px;height:18px;border:2px solid var(--muted);border-radius:50%;flex:none;display:grid;place-items:center}
+.opt.on .rd{border-color:var(--primary)}
+.opt.on .rd::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary)}
+.sec{border:1px solid var(--div);border-radius:12px}
+.sec-h{padding:12px 16px;font-weight:500}
+.sec-b{padding:0 16px 16px;display:flex;flex-direction:column;gap:16px}
+.cond{border-left:3px dashed var(--primary);padding-left:9px;margin-left:-12px}
+.cond-tag{font-size:11px;font-weight:500;color:var(--primary-ink);text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px 12px}
+.menu-i{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--div)}
+.menu-i:last-child{border-bottom:none}
+.menu-i span{flex:1}
+.menu-i i{font-style:normal;color:var(--muted)}
+.msg{display:flex;flex-direction:column;gap:8px}
+table{border-collapse:collapse;width:100%;background:var(--card);border:1px solid var(--div);border-radius:12px;overflow:hidden;margin-top:16px}
+th,td{text-align:start;padding:10px 12px;border-bottom:1px solid var(--div);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:13px}
+tr:last-child td{border-bottom:none}
+td:first-child{white-space:nowrap}
+.tw{overflow-x:auto}
+a{color:var(--primary-ink)}
+</style>
+</head>
+<body>
+<main>
+<h1>Energy Payback: Einrichtung (Entwurf MVP)</h1>
+<p class="lead">Alle Schritte und Texte der Einrichtung und der späteren Änderungen. Beispielhaushalt: Energie-Dashboard mit Netz, Einspeisung, zwei Solarquellen und Batterie; sieben einzelne Geräte; eingerichtet wird am 31.10.2026. Die Dialoge sind an Home Assistant angelehnt, nicht pixelgenau.</p>
+
+<div class="boxes">
+  <div class="box">
+    <h3>Leitlinien</h3>
+    <ul>
+      <li>Jeder Schritt erklärt sich in ein bis zwei Sätzen, jedes Feld in höchstens einer Zeile.</li>
+      <li>Nichts ist vorausgewählt, nichts ist eingeklappt.</li>
+      <li>Gefragt wird nur, was Home Assistant nicht weiß. Felder, die nicht gebraucht werden, erscheinen gar nicht.</li>
+      <li>Intern fest und in der Anleitung beschrieben: Wirkungsgrad der alten Heizung 92 %, Heizöl 10 kWh je Liter.</li>
+    </ul>
+  </div>
+  <div class="box">
+    <h3>Bewusst nicht im MVP</h3>
+    <ul>
+      <li>Anschaffungskosten aus einem Helfer (nur feste Werte).</li>
+      <li>Sensoren für Verbräuche und JAZ.</li>
+      <li>Verlauf eines Preissensors von vor der Einrichtung.</li>
+      <li>Hinweis auf unplausible Messwerte.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Das Prinzip: drei Phasen</h2>
+<p class="lead">Die Einrichtung macht diese Phasen sichtbar: Phase 2 hat einen eigenen Schritt mit dem konkreten Datum, Phase 3 einen eigenen Punkt im Menü für spätere Änderungen.</p>
+<div class="phases">
+  <div class="ph"><b>1 · Vor Home Assistant</b><small>Keine Daten, zählt nicht. Die Karte sagt »seit 27.07.2023«.</small></div>
+  <div class="ph"><b>2 · Daten da, Integration noch nicht</b><small>Gerechnet mit je einem Durchschnittswert, eingetragen bei der Einrichtung.</small></div>
+  <div class="ph"><b>3 · Ab der Einrichtung</b><small>Der Durchschnitt gilt als Startwert weiter. Änderungen und ein Preissensor gelten ab der nächsten vollen Stunde.</small></div>
+</div>
+
+<h2>1 · Erste Einrichtung</h2>
+<p class="lead">Einstellungen › Geräte &amp; Dienste › Integration hinzufügen › Energy Payback. Nur die ausgewählten Auswertungen erscheinen.</p>
+<div class="path"><span>Übersicht</span><i>›</i><span>PV-Anlage</span><i>›</i><span>Wärmepumpe</span><i>›</i><span>Wärmepumpe: Durchschnittswerte</span><i>›</i><span>E-Auto</span><i>›</i><span>E-Auto: Durchschnittswerte</span><i>›</i><span>Fertig</span></div>
+
+<div class="grid">
+
+<!-- Overview -->
+<div class="fig">
+  <div class="step">Schritt 1 · Übersicht</div>
+  <div class="dlg" role="img" aria-label="Dialog Übersicht">
+    <div class="dlg-h"><h3>Energy Payback</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc">
+        <p>Zeigt, was PV-Anlage, Wärmepumpe und E-Auto gespart haben und wann sie sich bezahlt machen.</p>
+        <p>Aus deinem Energie-Dashboard:</p>
+        <ul class="found">
+          <li><span class="ok">✓</span>Netzbezug mit Strompreis</li>
+          <li><span class="ok">✓</span>Einspeisung mit Vergütung</li>
+          <li><span class="ok">✓</span>Solar: 2 Quellen</li>
+          <li><span class="ok">✓</span>Batterie</li>
+          <li><span class="ok">✓</span>Einzelne Geräte: 7</li>
+        </ul>
+      </div>
+      <div class="fld">
+        <div class="lbl">Was soll ausgewertet werden?</div>
+        <div class="opt"><span class="bx"></span>PV-Anlage</div>
+        <div class="opt"><span class="bx"></span>Wärmepumpe</div>
+        <div class="opt"><span class="bx"></span>E-Auto</div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Weiter</button></div>
+  </div>
+  <div class="cap">
+    <b>Nicht vorhanden</b> steht mit Strich, zum Beispiel »– Batterie: keine«.
+    <ul>
+      <li>Ohne Solar fehlt »PV-Anlage«, ohne einzelne Geräte fehlen »Wärmepumpe« und »E-Auto«. Darunter steht dann eine Zeile, zum Beispiel: »Für Wärmepumpe und E-Auto fehlen einzelne Geräte im Energie-Dashboard.«</li>
+      <li>Fehler ohne Auswahl: »Wähle mindestens eine Auswertung.«</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PV -->
+<div class="fig">
+  <div class="step">Schritt 2 · PV-Anlage</div>
+  <div class="dlg" role="img" aria-label="Dialog PV-Anlage">
+    <div class="dlg-h"><h3>PV-Anlage</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc">
+        <p>Gerechnet wird ab dem 27.07.2023, seitdem hat Home Assistant Solardaten. Erzeugung, Einspeisung, Batterie und Strompreise kommen aus dem Energie-Dashboard.</p>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Anschaffungskosten (optional)</small><div class="v ph0">&nbsp;</div></div><span class="suf">€</span></div>
+        <div class="hint">Für die Amortisation</div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Weiter</button></div>
+  </div>
+  <div class="cap">
+    Nur wenn im Energie-Dashboard keine Einspeisung erfasst ist, steht über dem Feld:
+    <div class="note" style="margin-top:6px">Im Energie-Dashboard ist keine Einspeisung erfasst. Dann zählt der ganze Solarstrom als selbst verbraucht.</div>
+  </div>
+</div>
+
+<!-- Heat pump A -->
+<div class="fig">
+  <div class="step">Schritt 3 · Wärmepumpe</div>
+  <div class="dlg" role="img" aria-label="Dialog Wärmepumpe">
+    <div class="dlg-h"><h3>Wärmepumpe</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Vergleicht die Wärmepumpe mit deiner früheren Heizung.</p></div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Stromverbrauch</small><div class="v ph0">Geräte auswählen</div></div><span class="suf">▾</span></div>
+        <div class="hint">Gesamtzähler, oder Heizung und Warmwasser einzeln</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Erzeugte Wärme (optional)</small><div class="v ph0">Sensoren auswählen</div></div><span class="suf">▾</span></div>
+        <div class="hint">Wärmemengenzähler für dieselben Teile wie der Stromverbrauch</div>
+      </div>
+      <div class="fld">
+        <div class="lbl">Frühere Heizung</div>
+        <div class="opt"><span class="rd"></span>Gas</div>
+        <div class="opt"><span class="rd"></span>Öl</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Mehrkosten (optional)</small><div class="v ph0">&nbsp;</div></div><span class="suf">€</span></div>
+        <div class="hint">Mehrkosten der Anschaffung gegenüber einer Gas- oder Ölheizung. Für die Amortisation.</div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Weiter</button></div>
+  </div>
+  <div class="cap">
+    <b>Stromverbrauch</b> bietet die einzelnen Geräte des Energie-Dashboards an. <b>Erzeugte Wärme</b> bietet alle Energiesensoren an.
+    <ul>
+      <li>Fehler: »Wähle mindestens einen Zähler.« · »Wähle die frühere Heizung.«</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Heat pump B -->
+<div class="fig">
+  <div class="step">Schritt 4 · Wärmepumpe: Durchschnittswerte</div>
+  <div class="dlg" role="img" aria-label="Dialog Durchschnittswerte Wärmepumpe">
+    <div class="dlg-h"><h3>Durchschnitt seit 01.10.2024</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Für die Zeit seit dem 01.10.2024 kennt Home Assistant deine Gaspreise nicht. Trage Durchschnittswerte ein. Sie gelten auch ab jetzt, bis du sie änderst.</p></div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Gaspreis</small><div class="v ph0">&nbsp;</div></div><span class="suf">€/kWh</span></div>
+        <div class="hint">Arbeitspreis laut Gasrechnung</div>
+      </div>
+      <div class="cond">
+        <div class="cond-tag">Nur falls Wärmedaten fehlen</div>
+        <div class="fld">
+          <div class="inp"><div class="lv"><small>Jahresarbeitszahl (JAZ)</small><div class="v ph0">&nbsp;</div></div></div>
+          <div class="hint">Schätzt die Wärme bis 02.02.2026, dafür fehlen Messwerte</div>
+        </div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Eigener Stromtarif (optional)</small><div class="v ph0">&nbsp;</div></div><span class="suf">€/kWh</span></div>
+        <div class="hint">Nur bei eigenem Wärmepumpentarif, sonst gilt der Preis aus dem Energie-Dashboard</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Gaspreis-Sensor (optional)</small><div class="v ph0">Entität auswählen</div></div><span class="suf">▾</span></div>
+        <div class="hint">Ersetzt den Durchschnitt ab jetzt</div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Weiter</button></div>
+  </div>
+  <div class="cap">
+    <b>Das Datum</b> ist der Beginn der Daten der gewählten Stromzähler. Bei Öl heißen die Felder »Heizölpreis« in €/l und »Heizölpreis-Sensor«, die Hinweiszeile »Durchschnittlicher Literpreis«.
+    <ul>
+      <li><b>JAZ</b> erscheint nur, wenn Wärmedaten fehlen. Ohne Wärmezähler lautet der Hinweis »Schätzt die Wärme aus dem Stromverbrauch«.</li>
+      <li>Fehler: »Gib einen Preis über 0 an.« · »Gib eine JAZ zwischen 1 und 8 an.«</li>
+    </ul>
+  </div>
+</div>
+
+<!-- EV A -->
+<div class="fig">
+  <div class="step">Schritt 5 · E-Auto</div>
+  <div class="dlg" role="img" aria-label="Dialog E-Auto">
+    <div class="dlg-h"><h3>E-Auto</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Vergleicht das E-Auto mit einem Verbrenner. Gemessen wird, was an der Wallbox geladen wird.</p></div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Ladezähler</small><div class="v ph0">Geräte auswählen</div></div><span class="suf">▾</span></div>
+        <div class="hint">Wallbox oder Ladepunkte</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Mehrkosten (optional)</small><div class="v ph0">&nbsp;</div></div><span class="suf">€</span></div>
+        <div class="hint">Mehrkosten der Anschaffung gegenüber einem Verbrenner. Für die Amortisation.</div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Weiter</button></div>
+  </div>
+  <div class="cap">
+    <b>Ladezähler</b> bietet die einzelnen Geräte an, außer denen, die schon bei der Wärmepumpe gewählt sind.
+    <ul><li>Fehler: »Wähle mindestens einen Zähler.«</li></ul>
+  </div>
+</div>
+
+<!-- EV B -->
+<div class="fig">
+  <div class="step">Schritt 6 · E-Auto: Durchschnittswerte</div>
+  <div class="dlg" role="img" aria-label="Dialog Durchschnittswerte E-Auto">
+    <div class="dlg-h"><h3>Durchschnitt seit 05.06.2023</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Für die Zeit seit dem 05.06.2023 kennt Home Assistant weder Spritpreise noch Verbräuche. Trage Durchschnittswerte ein. Sie gelten auch ab jetzt, bis du sie änderst.</p></div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Verbrauch E-Auto</small><div class="v ph0">&nbsp;</div></div><span class="suf">kWh/100 km</span></div>
+        <div class="hint">Ab Wallbox mit Ladeverlusten, meist 10–15 % über der Anzeige im Auto</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Verbrauch Verbrenner</small><div class="v ph0">&nbsp;</div></div><span class="suf">l/100 km</span></div>
+        <div class="hint">Was ein vergleichbarer Verbrenner gebraucht hätte</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Spritpreis</small><div class="v ph0">&nbsp;</div></div><span class="suf">€/l</span></div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Eigener Stromtarif (optional)</small><div class="v ph0">&nbsp;</div></div><span class="suf">€/kWh</span></div>
+        <div class="hint">Nur bei eigenem Autostromtarif, sonst gilt der Preis aus dem Energie-Dashboard</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Spritpreis-Sensor (optional)</small><div class="v ph0">Entität auswählen</div></div><span class="suf">▾</span></div>
+        <div class="hint">Ersetzt den Durchschnitt ab jetzt</div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Absenden</button></div>
+  </div>
+  <div class="cap">
+    Mehrere Autos: Es zählt der Durchschnitt aller Autos.
+    <ul><li>Fehler: »Gib einen Wert über 0 an.«</li></ul>
+  </div>
+</div>
+
+<!-- Done -->
+<div class="fig">
+  <div class="step">Fertig</div>
+  <div class="dlg" role="img" aria-label="Dialog Erfolg">
+    <div class="dlg-h"><h3>Erfolg</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Die Vergangenheit wird jetzt nachgerechnet, das dauert meist unter einer Minute. Die Karte »Energy Payback« findest du im Dashboard unter »Karte hinzufügen«.</p></div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Fertig</button></div>
+  </div>
+  <div class="cap">Danach folgt die übliche Zuordnung der neuen Geräte zu Bereichen.</div>
+</div>
+
+</div>
+
+<h2>2 · Später</h2>
+<p class="lead">Auf der Integrationsseite steht jede Auswertung mit ihrem Menü (⋮ › Neu konfigurieren). Für fehlende Auswertungen gibt es Schaltflächen wie »E-Auto hinzufügen«; sie führen durch dieselben Schritte wie oben.</p>
+
+<div class="grid">
+
+<!-- Menu -->
+<div class="fig">
+  <div class="step">Neu konfigurieren · Menü</div>
+  <div class="dlg" role="img" aria-label="Menü Wärmepumpe">
+    <div class="dlg-h"><h3>Wärmepumpe</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Was möchtest du ändern?</p></div>
+      <div>
+        <div class="menu-i"><span>Werte ab jetzt</span><i>›</i></div>
+        <div class="menu-i"><span>Durchschnittswerte vor der Einrichtung</span><i>›</i></div>
+        <div class="menu-i"><span>Zähler und Mehrkosten</span><i>›</i></div>
+        <div class="menu-i"><span>Neu berechnen</span><i>›</i></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">Beim E-Auto gleich. Die PV-Anlage hat nur »Anschaffungskosten« und »Neu berechnen«.</div>
+</div>
+
+<!-- From now on -->
+<div class="fig">
+  <div class="step">Werte ab jetzt</div>
+  <div class="dlg" role="img" aria-label="Dialog Werte ab jetzt">
+    <div class="dlg-h"><h3>Werte ab jetzt</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Neue Werte gelten ab der nächsten vollen Stunde. Bisher Berechnetes bleibt.</p></div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Gaspreis</small><div class="v">0,10</div></div><span class="suf">€/kWh</span></div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Eigener Stromtarif (optional)</small><div class="v ph0">&nbsp;</div></div><span class="suf">€/kWh</span></div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Gaspreis-Sensor (optional)</small><div class="v ph0">Entität auswählen</div></div><span class="suf">▾</span></div>
+        <div class="hint">Ersetzt den Gaspreis</div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Absenden</button></div>
+  </div>
+  <div class="cap">Ohne Wärmezähler steht hier zusätzlich die JAZ. Danach: »Die neuen Werte gelten ab 15:00 Uhr.«</div>
+</div>
+
+<!-- Before setup -->
+<div class="fig">
+  <div class="step">Durchschnittswerte vor der Einrichtung</div>
+  <div class="dlg" role="img" aria-label="Dialog Durchschnittswerte vor der Einrichtung">
+    <div class="dlg-h"><h3>Vor der Einrichtung</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Durchschnittswerte für den 01.10.2024 bis 31.10.2026. Änderst du sie, wird dieser Zeitraum neu berechnet.</p></div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Gaspreis</small><div class="v">0,10</div></div><span class="suf">€/kWh</span></div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Jahresarbeitszahl (JAZ)</small><div class="v">3,8</div></div></div>
+        <div class="hint">Schätzt die Wärme bis 02.02.2026</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Eigener Stromtarif (optional)</small><div class="v ph0">&nbsp;</div></div><span class="suf">€/kWh</span></div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Absenden</button></div>
+  </div>
+  <div class="cap">Danach: »Der Zeitraum wird neu berechnet.«</div>
+</div>
+
+<!-- Meters -->
+<div class="fig">
+  <div class="step">Zähler und Mehrkosten</div>
+  <div class="dlg" role="img" aria-label="Dialog Zähler und Mehrkosten">
+    <div class="dlg-h"><h3>Zähler und Mehrkosten</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc"><p>Andere Zähler oder eine andere frühere Heizung berechnen alles neu. Mehrkosten gelten sofort.</p></div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Stromverbrauch</small><div class="v">Heizung, Warmwasser</div></div><span class="suf">▾</span></div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Erzeugte Wärme (optional)</small><div class="v">Wärmepumpe Wärme gesamt</div></div><span class="suf">▾</span></div>
+      </div>
+      <div class="fld">
+        <div class="lbl">Frühere Heizung</div>
+        <div class="opt on"><span class="rd"></span>Gas</div>
+        <div class="opt"><span class="rd"></span>Öl</div>
+      </div>
+      <div class="fld">
+        <div class="inp"><div class="lv"><small>Mehrkosten (optional)</small><div class="v">13.000</div></div><span class="suf">€</span></div>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Absenden</button></div>
+  </div>
+  <div class="cap">Brauchen neue Zähler eine JAZ, die es noch nicht gibt, folgt der Schritt »Durchschnittswerte« mit nur diesem Feld.</div>
+</div>
+
+<!-- Recompute -->
+<div class="fig">
+  <div class="step">Neu berechnen</div>
+  <div class="dlg" role="img" aria-label="Dialog Neu berechnen">
+    <div class="dlg-h"><h3>Neu berechnen</h3><span class="ico">✕</span></div>
+    <div class="dlg-b">
+      <div class="desc">
+        <p>Rechnet die Wärmepumpe mit den aktuellen Messdaten neu, zum Beispiel nachdem du einen falschen Messwert in den Statistiken korrigiert hast. Deine Werte bleiben, wie sie sind.</p>
+      </div>
+    </div>
+    <div class="dlg-f"><button class="btn fill">Neu berechnen</button></div>
+  </div>
+  <div class="cap">Danach: »Die Wärmepumpe wird neu berechnet.«</div>
+</div>
+
+</div>
+
+<h2>3 · Abbrüche und Meldungen</h2>
+<div class="tw">
+<table>
+  <tr><th>Wann</th><th>Text</th></tr>
+  <tr><td>Schon eingerichtet</td><td>Energy Payback ist schon eingerichtet. Weitere Auswertungen fügst du auf der Integrationsseite hinzu.</td></tr>
+  <tr><td>Kein Netzbezug mit Preis</td><td>Richte zuerst im Energie-Dashboard den Netzbezug mit Strompreis ein. Danach kannst du Energy Payback hinzufügen.</td></tr>
+  <tr><td>Nichts auswertbar</td><td>Im Energie-Dashboard fehlen Solar und einzelne Geräte. Füge dort mindestens eins hinzu.</td></tr>
+  <tr><td>Auswertung schon vorhanden</td><td>Die Wärmepumpe ist schon eingerichtet. Ändern kannst du sie über »Neu konfigurieren«.</td></tr>
+  <tr><td>Energie-Dashboard nicht lesbar</td><td>Das Energie-Dashboard lässt sich nicht lesen. Diese Version von Home Assistant wird noch nicht unterstützt.</td></tr>
+</table>
+</div>
+
+</main>
+</body>
+</html>

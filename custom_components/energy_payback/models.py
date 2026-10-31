@@ -4,36 +4,53 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 import hashlib
 import json
 from typing import Any
 
-from homeassistant.util import dt as dt_util
-
-from .calculation import PriceTimeline
+from .calculation import Timeline
 from .const import (
     CATEGORY_HEAT_PUMP,
     CATEGORY_WALLBOX,
-    CONF_BOILER_EFFICIENCY,
-    CONF_COMBUSTION_CONSUMPTION,
-    CONF_COMMISSIONED,
-    CONF_EV_CONSUMPTION,
-    CONF_FUEL_PRICE,
-    CONF_FUEL_PRICE_ENTITY,
-    CONF_GAS_PRICE,
-    CONF_GAS_PRICE_ENTITY,
-    CONF_GRID,
+    CONF_BEFORE,
+    CONF_CURRENT,
     CONF_HEAT_METERS,
+    CONF_HEATING,
     CONF_INVESTMENT,
-    CONF_INVESTMENT_ENTITY,
     CONF_METERS,
-    CONF_SCOP,
-    DEFAULT_BOILER_EFFICIENCY,
-    DEFAULT_COMBUSTION_CONSUMPTION,
-    DEFAULT_EV_CONSUMPTION,
-    DEFAULT_SCOP,
+    CONF_RECOMPUTE,
+    CONF_SETUP_AT,
+    HEATING_GAS,
+    VALUE_COMBUSTION_CONSUMPTION,
+    VALUE_EV_CONSUMPTION,
+    VALUE_PRICE,
+    VALUE_PRICE_ENTITY,
+    VALUE_SCOP,
+    VALUE_TARIFF,
 )
+
+# The values each category asks for. They have an average for the time before
+# the setup, and a current value with its own timeline after it.
+CATEGORY_VALUES: dict[str, tuple[str, ...]] = {
+    CATEGORY_HEAT_PUMP: (VALUE_PRICE, VALUE_SCOP, VALUE_TARIFF),
+    CATEGORY_WALLBOX: (
+        VALUE_EV_CONSUMPTION,
+        VALUE_COMBUSTION_CONSUMPTION,
+        VALUE_PRICE,
+        VALUE_TARIFF,
+    ),
+}
+
+
+def _numbers(data: Any) -> dict[str, float]:
+    if not isinstance(data, Mapping):
+        return {}
+    return {
+        key: float(value)
+        for key, value in data.items()
+        if isinstance(value, int | float) and not isinstance(value, bool)
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,77 +58,55 @@ class CategoryConfig:
     """What the user entered for one category."""
 
     category: str
-    commissioned: date | None = None
     investment: float | None = None
-    investment_entity: str | None = None
     meters: tuple[str, ...] = ()
     heat_meters: tuple[str, ...] = ()
-    scop: float = DEFAULT_SCOP
-    boiler_efficiency: float = DEFAULT_BOILER_EFFICIENCY
-    combustion_consumption: float = DEFAULT_COMBUSTION_CONSUMPTION
-    ev_consumption: float = DEFAULT_EV_CONSUMPTION
-    price: float | None = None
-    """Gas price per kWh for the heat pump, fuel price per litre for the wallbox."""
+    heating: str = HEATING_GAS
+    setup_at: float = 0.0
+    before: Mapping[str, float] = field(default_factory=dict)
+    current: Mapping[str, float] = field(default_factory=dict)
     price_entity: str | None = None
-    grid: str | None = None
-    """Import meter of the grid whose price the device pays."""
+    recompute: float | None = None
 
     @classmethod
     def from_data(cls, category: str, data: Mapping[str, Any]) -> CategoryConfig:
         """Create from subentry data."""
-        commissioned = data.get(CONF_COMMISSIONED)
-        price_key, price_entity_key = {
-            CATEGORY_HEAT_PUMP: (CONF_GAS_PRICE, CONF_GAS_PRICE_ENTITY),
-            CATEGORY_WALLBOX: (CONF_FUEL_PRICE, CONF_FUEL_PRICE_ENTITY),
-        }.get(category, ("", ""))
         investment = data.get(CONF_INVESTMENT)
-        price = data.get(price_key)
+        current = data.get(CONF_CURRENT) or {}
+        recompute = data.get(CONF_RECOMPUTE)
         return cls(
             category=category,
-            commissioned=date.fromisoformat(commissioned) if commissioned else None,
             investment=float(investment) if investment is not None else None,
-            investment_entity=data.get(CONF_INVESTMENT_ENTITY) or None,
             meters=tuple(data.get(CONF_METERS, ())),
             heat_meters=tuple(data.get(CONF_HEAT_METERS, ())),
-            scop=float(data.get(CONF_SCOP, DEFAULT_SCOP)),
-            boiler_efficiency=float(
-                data.get(CONF_BOILER_EFFICIENCY, DEFAULT_BOILER_EFFICIENCY)
-            ),
-            combustion_consumption=float(
-                data.get(CONF_COMBUSTION_CONSUMPTION, DEFAULT_COMBUSTION_CONSUMPTION)
-            ),
-            ev_consumption=float(data.get(CONF_EV_CONSUMPTION, DEFAULT_EV_CONSUMPTION)),
-            price=float(price) if price is not None else None,
-            price_entity=data.get(price_entity_key) or None,
-            grid=data.get(CONF_GRID) or None,
+            heating=data.get(CONF_HEATING, HEATING_GAS),
+            setup_at=float(data.get(CONF_SETUP_AT, 0.0)),
+            before=_numbers(data.get(CONF_BEFORE)),
+            current=_numbers(current),
+            price_entity=current.get(VALUE_PRICE_ENTITY) or None,
+            recompute=float(recompute) if recompute is not None else None,
         )
 
     @property
-    def commissioned_ts(self) -> float | None:
-        """Return the start of the commissioning day as a timestamp."""
-        if self.commissioned is None:
-            return None
-        return dt_util.start_of_local_day(self.commissioned).timestamp()
+    def values(self) -> tuple[str, ...]:
+        """Return the keys of the values this category asks for."""
+        return CATEGORY_VALUES.get(self.category, ())
 
     @property
     def fingerprint(self) -> str:
         """Identify the settings that change the computed past.
 
-        Fixed prices and investments are left out: they apply from now on.
-        Everything else was simply wrong before, so the past is recomputed.
+        Current values and investments are left out: they apply from now on.
+        Meters, the former heating, and the averages before the setup change
+        what was computed, so the category is computed again.
         """
         relevant = {
-            "commissioned": self.commissioned.isoformat()
-            if self.commissioned
-            else None,
             "meters": sorted(self.meters),
             "heat_meters": sorted(self.heat_meters),
-            "scop": self.scop,
-            "boiler_efficiency": self.boiler_efficiency,
-            "combustion_consumption": self.combustion_consumption,
-            "ev_consumption": self.ev_consumption,
-            "price_entity": self.price_entity,
-            "grid": self.grid,
+            "heating": self.heating,
+            "setup_at": self.setup_at,
+            "before": dict(sorted(self.before.items())),
+            "recompute": self.recompute,
         }
         encoded = json.dumps(relevant, sort_keys=True).encode()
         return hashlib.sha256(encoded).hexdigest()[:16]
@@ -122,30 +117,57 @@ class CategoryState:
     """The persisted progress of one category."""
 
     fingerprint: str = ""
+    heating: str | None = None
+    """The former heating the timelines were recorded for."""
     data_start: float | None = None
+    heat_start: float | None = None
+    """First hour of heat data; None without heat meters or data."""
     next_hour: float | None = None
     """Start of the next hour to compute; None before the past is computed."""
     saving: float = 0.0
-    last_price: float | None = None
-    prices: PriceTimeline = field(default_factory=PriceTimeline)
+    last_prices: dict[str, float] = field(default_factory=dict)
+    """Last electricity price per grid import meter, to bridge gaps."""
+    last_entity_price: float | None = None
+    measured_heat: float = 0.0
+    measured_electricity: float = 0.0
+    estimated: bool = False
+    """Whether some heat was estimated instead of measured."""
+    timelines: dict[str, Timeline] = field(default_factory=dict)
 
     def reset(self, fingerprint: str) -> None:
-        """Forget the computed past, keeping the price history."""
+        """Forget the computed past, keeping the timelines of current values."""
         self.fingerprint = fingerprint
         self.data_start = None
+        self.heat_start = None
         self.next_hour = None
         self.saving = 0.0
-        self.last_price = None
+        self.last_prices = {}
+        self.last_entity_price = None
+        self.measured_heat = 0.0
+        self.measured_electricity = 0.0
+        self.estimated = False
+
+    def timeline(self, key: str) -> Timeline:
+        """Return the timeline of a value, creating it if needed."""
+        return self.timelines.setdefault(key, Timeline())
 
     def as_dict(self) -> dict[str, Any]:
         """Return the state for storage."""
         return {
             "fingerprint": self.fingerprint,
+            "heating": self.heating,
             "data_start": self.data_start,
+            "heat_start": self.heat_start,
             "next_hour": self.next_hour,
             "saving": self.saving,
-            "last_price": self.last_price,
-            "prices": self.prices.as_list(),
+            "last_prices": self.last_prices,
+            "last_entity_price": self.last_entity_price,
+            "measured_heat": self.measured_heat,
+            "measured_electricity": self.measured_electricity,
+            "estimated": self.estimated,
+            "timelines": {
+                key: timeline.as_list() for key, timeline in self.timelines.items()
+            },
         }
 
     @classmethod
@@ -153,11 +175,20 @@ class CategoryState:
         """Restore the state from storage."""
         return cls(
             fingerprint=data.get("fingerprint", ""),
+            heating=data.get("heating"),
             data_start=data.get("data_start"),
+            heat_start=data.get("heat_start"),
             next_hour=data.get("next_hour"),
             saving=float(data.get("saving", 0.0)),
-            last_price=data.get("last_price"),
-            prices=PriceTimeline.from_list(data.get("prices", [])),
+            last_prices=dict(data.get("last_prices", {})),
+            last_entity_price=data.get("last_entity_price"),
+            measured_heat=float(data.get("measured_heat", 0.0)),
+            measured_electricity=float(data.get("measured_electricity", 0.0)),
+            estimated=bool(data.get("estimated", False)),
+            timelines={
+                key: Timeline.from_list(points)
+                for key, points in data.get("timelines", {}).items()
+            },
         )
 
 
@@ -172,16 +203,16 @@ class CategoryResult:
     payback: float | None = None
     per_year: float | None = None
     counting_since: datetime | None = None
-    commissioned: date | None = None
-    covered: bool = True
     yearly_from: datetime | None = None
     price: float | None = None
-    """The assumed gas or fuel price in effect now."""
+    """The gas, oil, or fuel price in effect now."""
+    heating: str | None = None
+    heat_estimated: bool | None = None
 
     @property
     def balance_ready(self) -> bool:
         """Return whether this category can take part in the overall balance."""
-        return not self.calculating and self.saving is not None and self.covered
+        return not self.calculating and self.saving is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,8 +225,7 @@ class PaybackData:
     def balance(self) -> float | None:
         """Return all savings minus all investments.
 
-        Unknown while any category is still calculating or its data does not
-        reach back to its start of operation.
+        Unknown while any category is still calculating or has no data yet.
         """
         results = list(self.categories.values())
         if not results or not all(result.balance_ready for result in results):

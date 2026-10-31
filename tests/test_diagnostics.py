@@ -24,7 +24,7 @@ async def test_diagnostics(hass: HomeAssistant, config_entry: MockConfigEntry) -
     assert diagnostics["currency"] == "EUR"
     assert diagnostics["energy_dashboard"]["solar"] == ("sensor.solar",)
     categories = {c["type"]: c for c in diagnostics["categories"].values()}
-    assert categories["pv"]["data"] == {"investment": 10000}
+    assert categories["pv"]["data"] == {"investment": 10000, "setup_at": 0}
     assert categories["pv"]["state"]["saving"] > 0
     assert categories["pv"]["result"]["calculating"] is False
     assert diagnostics["balance"] is not None

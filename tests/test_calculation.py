@@ -8,20 +8,21 @@ from custom_components.energy_payback.calculation import (
     DAY,
     HOUR,
     YEAR,
-    PriceTimeline,
+    Timeline,
+    average_price,
     effective_meters,
     electricity_prices,
     heat_pump_saving,
-    is_covered,
+    heating_cost,
     pv_saving,
     summarize,
     wallbox_saving,
 )
 
 
-def test_price_timeline() -> None:
-    """The first price also covers the past; later prices apply from their start."""
-    timeline = PriceTimeline()
+def test_timeline() -> None:
+    """The first value also covers the past; later values apply from their start."""
+    timeline = Timeline()
     assert timeline.value_at(100) is None
     assert timeline.set(0.11, valid_from=5000)
     assert timeline.value_at(-1) == 0.11
@@ -32,7 +33,10 @@ def test_price_timeline() -> None:
     # A second change before the first took effect replaces it.
     assert timeline.set(0.14, valid_from=7200)
     assert timeline.points == [(0.0, 0.11), (7200, 0.14)]
-    assert PriceTimeline.from_list(timeline.as_list()) == timeline
+    assert Timeline.from_list(timeline.as_list()) == timeline
+    # Sensors are recorded the same way; None means none is chosen.
+    assert timeline.set(None, valid_from=9000)
+    assert timeline.value_at(9000) is None
 
 
 def test_electricity_prices_order() -> None:
@@ -72,25 +76,25 @@ def test_pv_saving() -> None:
     ) == pytest.approx(2.5 * 0.3 + 0.16)
 
 
+def test_heating_cost() -> None:
+    """Gas per kWh, oil per litre at 10 kWh; both at 92 % efficiency."""
+    assert heating_cost(9.2, "gas", 0.1) == pytest.approx(1.0)
+    assert heating_cost(92, "oil", 1.0) == pytest.approx(10.0)
+
+
 def test_heat_pump_saving() -> None:
-    """Gas for the same heat minus the heat pump's electricity."""
+    """The former heating's cost for the same heat minus the heat pump's electricity."""
     assert heat_pump_saving(
-        electricity=1,
-        heat=None,
-        scop=4,
-        boiler_efficiency=0.9,
-        gas_price=0.09,
-        electricity_price=0.3,
-    ) == pytest.approx(4 / 0.9 * 0.09 - 0.3)
-    measured = heat_pump_saving(
-        electricity=1,
-        heat=3,
-        scop=4,
-        boiler_efficiency=1,
-        gas_price=0.1,
-        electricity_price=0.3,
-    )
-    assert measured == pytest.approx(0.0)
+        electricity=1, heat=4, heating="gas", fuel_price=0.09, electricity_price=0.3
+    ) == pytest.approx(4 / 0.92 * 0.09 - 0.3)
+
+
+def test_average_price() -> None:
+    """Several tariffs count with their imported energy, or equally without any."""
+    assert average_price([0.3, 0.2], [1.0, 3.0]) == pytest.approx(0.225)
+    assert average_price([0.3, 0.2], [0.0, 0.0]) == pytest.approx(0.25)
+    assert average_price([None, 0.2], [1.0, 1.0]) == pytest.approx(0.2)
+    assert average_price([None], [1.0]) is None
 
 
 def test_wallbox_saving() -> None:
@@ -114,29 +118,13 @@ def test_effective_meters() -> None:
     assert effective_meters(["a"], cycle) == ["a"]
 
 
-def test_is_covered() -> None:
-    """Data must reach back to the start of operation, with some tolerance."""
-    assert is_covered(None, 1000 * DAY)
-    assert is_covered(999 * DAY, 1000 * DAY)
-    assert not is_covered(990 * DAY, 1000 * DAY)
-
-
 def test_summarize() -> None:
-    """No yearly average before twelve months, no payback without full data."""
-    early = summarize(
-        saving=100, counting_since=0, until=100 * DAY, investment=1000, covered=True
-    )
+    """No yearly average before twelve months, no payback without investment."""
+    early = summarize(saving=100, counting_since=0, until=100 * DAY, investment=1000)
     assert early.per_year is None
     assert early.payback == pytest.approx(10)
     assert early.yearly_from == YEAR
 
-    later = summarize(
-        saving=3000, counting_since=0, until=2 * YEAR, investment=None, covered=True
-    )
+    later = summarize(saving=3000, counting_since=0, until=2 * YEAR, investment=None)
     assert later.per_year == pytest.approx(1500)
     assert later.payback is None
-
-    uncovered = summarize(
-        saving=3000, counting_since=0, until=2 * YEAR, investment=1000, covered=False
-    )
-    assert uncovered.payback is None

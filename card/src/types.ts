@@ -32,8 +32,9 @@ export interface CategoryFigures {
   payback: number | null;
   perYear: number | null;
   countingSince: Date | null;
-  commissioned: Date | null;
-  dataComplete: boolean;
   yearlyFrom: Date | null;
-  assumedPrice: number | null;
+  /** The gas, oil, or fuel price in effect now. */
+  price: number | null;
+  heating: "gas" | "oil" | null;
+  heatEstimated: boolean;
 }

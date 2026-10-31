@@ -60,9 +60,8 @@
       states[id("saving")] = { entity_id: id("saving"), state: c.calculating ? "unknown" : String(c.saving), attributes: {
         category: c.category, calculating: !!c.calculating, investment: c.investment ?? null,
         counting_since: c.since ? new Date(c.since).toISOString() : null,
-        commissioned: c.commissioned ?? null, data_complete: c.complete ?? true,
         yearly_from: c.since ? new Date(new Date(c.since).getTime() + 365.25 * day).toISOString() : null,
-        assumed_price: c.price ?? null } };
+        price: c.price ?? null, heating: c.heating ?? null, heat_estimated: c.estimated ?? false } };
       const payback = c.investment && (c.complete ?? true) && !c.calculating ? (c.saving / c.investment) * 100 : null;
       states[id("payback")] = { entity_id: id("payback"), state: payback === null ? "unknown" : String(payback), attributes: {} };
       states[id("per_year")] = { entity_id: id("per_year"), state: c.perYear == null ? "unknown" : String(c.perYear), attributes: {} };
@@ -71,15 +70,15 @@
   }
 
   const household = [
-    { category: "pv", saving: 6240, investment: 14500, perYear: 1719, since: "2023-03-14", complete: true },
-    { category: "heat_pump", saving: 1410, investment: 9000, perYear: 653, since: "2024-09-01", price: 0.11 },
+    { category: "pv", saving: 6240, investment: 14500, perYear: 1719, since: "2023-03-14" },
+    { category: "heat_pump", saving: 1410, investment: 9000, perYear: 653, since: "2024-09-01", price: 0.11, heating: "gas", estimated: true },
     { category: "wallbox", saving: 2130, perYear: 724, since: "2023-11-01", price: 1.75 },
   ];
   const cases = [
     ["a · Direkt nach der Einrichtung", hass(household.map((c) => ({ ...c, calculating: true }))), "total"],
     ["b · Gesamt", hass(household), "total"],
     ["c · Pro Jahr", hass(household), "yearly"],
-    ["d · PV-Anlage älter als die Daten", hass([{ ...household[0], complete: false, commissioned: "2019-05-01" }, household[1], household[2]]), "total"],
+    ["d · Ölheizung, ohne Mehrkosten", hass([{ ...household[1], heating: "oil", price: 1.05, investment: null, estimated: false }]), "total"],
     ["e · Erst wenige Monate Daten, pro Jahr", hass([
       { category: "pv", saving: 410, investment: 14500, perYear: null, since: new Date(now - 120 * day).toISOString() },
       { category: "heat_pump", saving: 95, investment: 9000, perYear: null, since: new Date(now - 120 * day).toISOString(), price: 0.11 },

@@ -44,10 +44,13 @@ export function readCategories(hass: HomeAssistant): CategoryFigures[] {
       payback: value(siblings(entry.device_id, "payback")?.entity_id),
       perYear: value(siblings(entry.device_id, "saving_per_year")?.entity_id),
       countingSince: date(attributes.counting_since),
-      commissioned: date(attributes.commissioned),
-      dataComplete: attributes.data_complete !== false,
       yearlyFrom: date(attributes.yearly_from),
-      assumedPrice: number(attributes.assumed_price),
+      price: number(attributes.price),
+      heating:
+        attributes.heating === "gas" || attributes.heating === "oil"
+          ? attributes.heating
+          : null,
+      heatEstimated: attributes.heat_estimated === true,
     });
   }
   return figures.sort(
@@ -58,23 +61,19 @@ export function readCategories(hass: HomeAssistant): CategoryFigures[] {
 export interface Totals {
   saved: number;
   invested: number;
-  /** Savings minus investments; null when the data cannot support it. */
+  /** Savings minus investments; null while it is being computed. */
   balance: number | null;
   perYear: number | null;
   /** When the household is roughly in the plus; null if unknown. */
   inThePlusFrom: Date | null;
   calculating: boolean;
-  incomplete: CategoryFigures[];
 }
 
 export function totals(categories: CategoryFigures[], now = new Date()): Totals {
   const calculating = categories.some((category) => category.calculating);
-  const incomplete = categories.filter(
-    (category) => !category.calculating && !category.dataComplete
-  );
   const saved = categories.reduce((sum, c) => sum + (c.saving ?? 0), 0);
   const invested = categories.reduce((sum, c) => sum + (c.investment ?? 0), 0);
-  const ready = !calculating && incomplete.length === 0 && categories.length > 0;
+  const ready = !calculating && categories.length > 0;
   const balance = ready ? saved - invested : null;
   const yearly = categories.every((category) => category.perYear !== null);
   const perYear =
@@ -96,22 +95,21 @@ export function totals(categories: CategoryFigures[], now = new Date()): Totals 
     perYear,
     inThePlusFrom,
     calculating,
-    incomplete,
   };
 }
 
 /** Years until a category has paid for itself, or null if it cannot be said. */
 export function yearsToPayback(category: CategoryFigures): number | null {
-  const { investment, saving, perYear, dataComplete } = category;
-  if (!dataComplete || investment === null || investment <= 0) return null;
+  const { investment, saving, perYear } = category;
+  if (investment === null || investment <= 0) return null;
   if (saving === null || perYear === null || perYear <= 0) return null;
   return Math.max(0, (investment - saving) / perYear);
 }
 
 /** Yearly return on the investment once paid off, in percent. */
 export function annualReturn(category: CategoryFigures): number | null {
-  const { investment, saving, perYear, dataComplete } = category;
-  if (!dataComplete || investment === null || investment <= 0) return null;
+  const { investment, saving, perYear } = category;
+  if (investment === null || investment <= 0) return null;
   if (saving === null || perYear === null || saving < investment) return null;
   return (perYear / investment) * 100;
 }

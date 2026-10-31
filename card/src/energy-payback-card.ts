@@ -188,19 +188,6 @@ class EnergyPaybackCard extends LitElement {
         ? t("in_the_plus")
         : t("in_the_plus_from", { date: this._month(sums.inThePlusFrom) });
     }
-    if (sums.incomplete.length) {
-      const since = categories
-        .map((c) => c.countingSince)
-        .filter((d): d is Date => d !== null)
-        .sort((a, b) => a.getTime() - b.getTime())[0];
-      const sinceText = since ? this._month(since) : "";
-      return sums.incomplete.length === 1
-        ? t("no_balance", {
-            since: sinceText,
-            names: t(`category.${sums.incomplete[0].category}`),
-          })
-        : t("no_balance_many", { since: sinceText });
-    }
     return sums.invested > 0
       ? t("saved_invested", {
           saved: this._money(sums.saved),
@@ -233,8 +220,21 @@ class EnergyPaybackCard extends LitElement {
               ? this._yearlyDetail(category)
               : this._totalDetail(category, name)}
         </div>
+        ${category.calculating ? nothing : this._since(category)}
       </div>
     </li>`;
+  }
+
+  /** Since when a row counts, and whether heat was partly estimated. */
+  private _since(category: CategoryFigures) {
+    const t = this._localize;
+    const parts: string[] = [];
+    if (category.countingSince)
+      parts.push(t("since", { date: this._month(category.countingSince) }));
+    if (category.heatEstimated) parts.push(t("heat_estimated"));
+    return parts.length
+      ? html`<div class="sub since">${parts.join(" · ")}</div>`
+      : nothing;
   }
 
   private _totalDetail(
@@ -242,12 +242,6 @@ class EnergyPaybackCard extends LitElement {
     name: string
   ): TemplateResult | string {
     const t = this._localize;
-    if (!category.dataComplete && category.countingSince && category.commissioned) {
-      return t("counted_since", {
-        since: this._month(category.countingSince),
-        commissioned: this._month(category.commissioned),
-      });
-    }
     if (category.investment && category.payback !== null) {
       const percent = Math.max(0, category.payback);
       const shown = this._percent(category.payback);
@@ -287,7 +281,8 @@ class EnergyPaybackCard extends LitElement {
       return t("return_per_year", { percent: this._percent(returnRate) });
     const years = yearsToPayback(category);
     if (years !== null) return t("pays_off_in", { years: this._years(years) });
-    if (category.category === "heat_pump") return t("instead_of_gas");
+    if (category.category === "heat_pump")
+      return t(category.heating === "oil" ? "instead_of_oil" : "instead_of_gas");
     if (category.category === "wallbox") return t("instead_of_fuel");
     return "";
   }
@@ -296,11 +291,11 @@ class EnergyPaybackCard extends LitElement {
     const t = this._localize;
     const prices: string[] = [];
     for (const category of categories) {
-      if (category.assumedPrice === null) continue;
+      if (category.price === null) continue;
+      const price = this._price(category.price);
       if (category.category === "heat_pump")
-        prices.push(t("gas", { price: this._price(category.assumedPrice) }));
-      if (category.category === "wallbox")
-        prices.push(t("fuel", { price: this._price(category.assumedPrice) }));
+        prices.push(t(category.heating === "oil" ? "oil" : "gas", { price }));
+      if (category.category === "wallbox") prices.push(t("fuel", { price }));
     }
     if (!prices.length) return nothing;
     return html`<div class="footer">
@@ -443,6 +438,9 @@ class EnergyPaybackCard extends LitElement {
     }
     .sub:empty {
       display: none;
+    }
+    .sub.since {
+      margin-top: 2px;
     }
     .meter {
       display: flex;

@@ -18,10 +18,10 @@ from homeassistant.util import dt as dt_util
 
 from .calculation import (
     HOUR,
+    average_price,
     effective_meters,
     electricity_prices,
     heat_pump_saving,
-    is_covered,
     pv_saving,
     summarize,
     wallbox_saving,
@@ -32,7 +32,14 @@ from .const import (
     DOMAIN,
     ISSUE_ENERGY_INTERFACE,
     ISSUE_MISSING_METER,
+    ISSUE_MISSING_PRICE_ENTITY,
     ISSUE_NO_GRID_PRICE,
+    VALUE_COMBUSTION_CONSUMPTION,
+    VALUE_EV_CONSUMPTION,
+    VALUE_PRICE,
+    VALUE_PRICE_ENTITY,
+    VALUE_SCOP,
+    VALUE_TARIFF,
 )
 from .models import CategoryConfig, CategoryResult, CategoryState, PaybackData
 from .sources import (
@@ -66,6 +73,11 @@ def _ceil_hour(timestamp: float) -> float:
     return math.ceil(timestamp / HOUR) * HOUR
 
 
+def next_full_hour() -> float:
+    """Return the start of the next full hour, from when new values apply."""
+    return _ceil_hour(time() + 1)
+
+
 def _number(hass: HomeAssistant, entity_id: str | None) -> float | None:
     """Return the numeric state of an entity, or None."""
     if entity_id is None or (state := hass.states.get(entity_id)) is None:
@@ -74,6 +86,25 @@ def _number(hass: HomeAssistant, entity_id: str | None) -> float | None:
         return float(state.state)
     except ValueError:
         return None
+
+
+def value_at(
+    config: CategoryConfig, state: CategoryState, key: str, hour: float
+) -> float | None:
+    """Return a value in effect at hour.
+
+    Before the setup the average entered for that time counts, after it the
+    current value of that hour.
+    """
+    if hour < config.setup_at:
+        return config.before.get(key)
+    value = state.timeline(key).value_at(hour)
+    return float(value) if isinstance(value, int | float) else None
+
+
+def _price_entity_at(state: CategoryState, hour: float) -> str | None:
+    entity = state.timeline(VALUE_PRICE_ENTITY).value_at(hour)
+    return entity if isinstance(entity, str) else None
 
 
 class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
@@ -102,17 +133,23 @@ class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
         self._without_data: set[str] = set()
 
     async def async_load(self) -> None:
-        """Restore progress and apply changed settings."""
+        """Restore progress and record changed current values."""
         stored = await self._store.async_load() or {}
         stored_categories: dict[str, Any] = stored.get("categories", {})
-        next_full_hour = _ceil_hour(time() + 1)
+        valid_from = next_full_hour()
         for subentry_id, subentry in self.config_entry.subentries.items():
             config = CategoryConfig.from_data(subentry.subentry_type, subentry.data)
             state = CategoryState.from_dict(stored_categories.get(subentry_id, {}))
+            if state.heating != config.heating:
+                # Gas prices are per kWh, oil prices per litre: start over.
+                state.timelines = {}
+                state.heating = config.heating
             if state.fingerprint != config.fingerprint:
                 state.reset(config.fingerprint)
-            if config.price is not None:
-                state.prices.set(config.price, next_full_hour)
+            for key in config.values:
+                state.timeline(key).set(config.current.get(key), valid_from)
+            if config.category != CATEGORY_PV:
+                state.timeline(VALUE_PRICE_ENTITY).set(config.price_entity, valid_from)
             self.configs[subentry_id] = config
             self.states[subentry_id] = state
         await self._async_save()
@@ -148,6 +185,7 @@ class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
             return self._results()
         ir.async_delete_issue(self.hass, DOMAIN, ISSUE_NO_GRID_PRICE)
 
+        self._check_price_entities()
         if (end := await async_end_of_data(self.hass, grid.import_stat)) is None:
             # No grid data yet, so there is nothing to compute.
             self._without_data = set(self.configs)
@@ -172,6 +210,29 @@ class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
             translation_key=translation_key,
             translation_placeholders=placeholders,
         )
+
+    def _check_price_entities(self) -> None:
+        """Raise an issue for price sensors that no longer exist."""
+        registry = er.async_get(self.hass)
+        for subentry_id, config in self.configs.items():
+            issue_id = f"{ISSUE_MISSING_PRICE_ENTITY}_{subentry_id}"
+            entity = config.price_entity
+            if (
+                entity is not None
+                and registry.async_get(entity) is None
+                and self.hass.states.get(entity) is None
+            ):
+                # Until it is replaced, its last value counts.
+                self._issue(
+                    issue_id,
+                    ISSUE_MISSING_PRICE_ENTITY,
+                    {
+                        "category": self.config_entry.subentries[subentry_id].title,
+                        "entity": entity,
+                    },
+                )
+            else:
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     def _key_stats(self, config: CategoryConfig, setup: EnergySetup) -> list[str]:
         """Return the statistics whose data defines when a category begins."""
@@ -215,7 +276,7 @@ class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
                 return
         self._without_data.discard(subentry_id)
 
-        counting_since = _ceil_hour(max(state.data_start, config.commissioned_ts or 0))
+        counting_since = _ceil_hour(state.data_start)
         computing_past = state.next_hour is None
         start = state.next_hour if state.next_hour is not None else counting_since
         history: list[tuple[float, float]] = []
@@ -242,48 +303,49 @@ class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
         Return the cumulative saving at the end of each hour.
         """
         hours = _hours(start, end)
-        grid = setup.grid(None if config.category == CATEGORY_PV else config.grid)
-        assert grid is not None and grid.import_stat is not None
-        grids = setup.grids if config.category == CATEGORY_PV else (grid,)
         meters = self._key_stats(config, setup)
+        is_pv = config.category == CATEGORY_PV
 
         sums: set[str] = set(meters) | set(config.heat_meters)
-        values: set[str] = {
-            entity for entity in (config.price_entity,) if entity is not None
-        }
-        for source in grids:
+        values: set[str] = set()
+        for source in setup.grids:
             sums |= _grid_sums(self.hass, source)
             values |= {
                 entity
                 for entity in (source.price_entity, source.export_price_entity)
                 if entity is not None
             }
-        if config.category == CATEGORY_PV:
+        if is_pv:
             for battery in setup.batteries:
                 sums |= {battery.discharge_stat, battery.charge_stat}
+        elif end > config.setup_at:
+            # Price sensors count only after the setup.
+            values |= {
+                entity
+                for _, entity in state.timeline(VALUE_PRICE_ENTITY).points
+                if isinstance(entity, str)
+            }
         changes = await async_hourly_changes(self.hass, sums, start, end)
         entity_values = await async_hourly_values(self.hass, values, start, end)
-
-        prices = self._import_prices(grid, hours, changes, entity_values, state)
+        prices = self._grid_prices(setup, hours, changes, entity_values, state)
 
         def change(stat: str, hour: float) -> float:
             return changes.get(stat, {}).get(hour, 0.0)
 
         history: list[tuple[float, float]] = []
-        if config.category == CATEGORY_PV:
+        if is_pv:
+            exporting = [source for source in setup.grids if source.export_stat]
             export_prices = {
-                source: _export_prices(self.hass, source, hours, changes, entity_values)
-                for source in grids
+                source.export_stat: _export_prices(
+                    self.hass, source, hours, changes, entity_values
+                )
+                for source in exporting
                 if source.export_stat is not None
             }
             for index, hour in enumerate(hours):
                 state.saving += pv_saving(
                     solar=sum(change(stat, hour) for stat in setup.solar),
-                    export=sum(
-                        change(source.export_stat, hour)
-                        for source in export_prices
-                        if source.export_stat
-                    ),
+                    export=sum(change(stat, hour) for stat in export_prices),
                     battery_out=sum(
                         change(b.discharge_stat, hour) for b in setup.batteries
                     ),
@@ -292,64 +354,130 @@ class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
                     ),
                     price=prices[index] or 0.0,
                     export_revenue=sum(
-                        change(source.export_stat, hour) * (rates[index] or 0.0)
-                        for source, rates in export_prices.items()
-                        if source.export_stat
+                        change(stat, hour) * (rates[index] or 0.0)
+                        for stat, rates in export_prices.items()
                     ),
                 )
                 history.append((hour, state.saving))
             return history
 
-        alternative = entity_values.get(config.price_entity or "", {})
+        def value(key: str, hour: float) -> float | None:
+            return value_at(config, state, key, hour)
+
         for index, hour in enumerate(hours):
             electricity = sum(change(meter, hour) for meter in meters)
-            price = alternative.get(hour, state.prices.value_at(hour) or 0.0)
+            tariff = value(VALUE_TARIFF, hour)
+            electricity_price = tariff if tariff is not None else prices[index] or 0.0
+            fuel_price = self._fuel_price(config, state, entity_values, hour)
             if config.category == CATEGORY_HEAT_PUMP:
-                measured = [
-                    changes[meter][hour]
-                    for meter in config.heat_meters
-                    if hour in changes.get(meter, {})
-                ]
                 state.saving += heat_pump_saving(
                     electricity=electricity,
-                    heat=sum(measured) if measured else None,
-                    scop=config.scop,
-                    boiler_efficiency=config.boiler_efficiency / 100,
-                    gas_price=price,
-                    electricity_price=prices[index] or 0.0,
+                    heat=self._heat(config, state, changes, electricity, hour),
+                    heating=config.heating,
+                    fuel_price=fuel_price,
+                    electricity_price=electricity_price,
                 )
-            else:
+            elif (ev := value(VALUE_EV_CONSUMPTION, hour)) and (
+                combustion := value(VALUE_COMBUSTION_CONSUMPTION, hour)
+            ) is not None:
                 state.saving += wallbox_saving(
                     electricity=electricity,
-                    ev_consumption=config.ev_consumption,
-                    combustion_consumption=config.combustion_consumption,
-                    fuel_price=price,
-                    electricity_price=prices[index] or 0.0,
+                    ev_consumption=ev,
+                    combustion_consumption=combustion,
+                    fuel_price=fuel_price,
+                    electricity_price=electricity_price,
                 )
             history.append((hour, state.saving))
         return history
 
-    def _import_prices(
+    def _fuel_price(
         self,
-        grid: GridSource,
+        config: CategoryConfig,
+        state: CategoryState,
+        entity_values: dict[str, dict[float, float]],
+        hour: float,
+    ) -> float:
+        """Return the gas, oil, or fuel price of an hour.
+
+        After the setup a price sensor takes precedence. While it has no value,
+        its last value counts.
+        """
+        if hour >= config.setup_at and (entity := _price_entity_at(state, hour)):
+            price = entity_values.get(entity, {}).get(hour)
+            if price is not None:
+                state.last_prices[entity] = price
+                return price
+            if (last := state.last_prices.get(entity)) is not None:
+                return last
+        return value_at(config, state, VALUE_PRICE, hour) or 0.0
+
+    @staticmethod
+    def _heat(
+        config: CategoryConfig,
+        state: CategoryState,
+        changes: dict[str, dict[float, float]],
+        electricity: float,
+        hour: float,
+    ) -> float:
+        """Return the heat of an hour, measured if possible, else estimated.
+
+        An hour counts as measured when every heat meter has data for it.
+        Before the first measured hour the seasonal COP entered for that time
+        estimates the heat; later gaps use the COP measured until then.
+        """
+        heat_meters = config.heat_meters
+        if heat_meters and all(hour in changes.get(meter, {}) for meter in heat_meters):
+            heat = sum(changes[meter][hour] for meter in heat_meters)
+            if state.heat_start is None:
+                state.heat_start = hour
+            state.measured_heat += heat
+            state.measured_electricity += electricity
+            return heat
+        scop = None
+        if state.heat_start is None:
+            scop = value_at(config, state, VALUE_SCOP, hour)
+        if scop is None and state.measured_electricity > 0:
+            scop = state.measured_heat / state.measured_electricity
+        if scop is None:
+            scop = value_at(config, state, VALUE_SCOP, hour) or 0.0
+        if electricity:
+            state.estimated = True
+        return electricity * scop
+
+    def _grid_prices(
+        self,
+        setup: EnergySetup,
         hours: list[float],
         changes: dict[str, dict[float, float]],
         entity_values: dict[str, dict[float, float]],
         state: CategoryState,
     ) -> list[float | None]:
-        assert grid.import_stat is not None
-        costs = _cost_stat(self.hass, grid)
-        prices = electricity_prices(
-            hours,
-            entity_prices=entity_values.get(grid.price_entity or "", {}),
-            costs=changes.get(costs or "", {}),
-            energy=changes.get(grid.import_stat, {}),
-            fixed=grid.price,
-            last_known=state.last_price,
-        )
-        if prices and prices[-1] is not None:
-            state.last_price = prices[-1]
-        return prices
+        """Return the electricity price of each hour over all grid connections."""
+        per_grid: list[list[float | None]] = []
+        energies: list[dict[float, float]] = []
+        for grid in setup.priced_grids:
+            assert grid.import_stat is not None
+            costs = _cost_stat(self.hass, grid)
+            energy = changes.get(grid.import_stat, {})
+            prices = electricity_prices(
+                hours,
+                entity_prices=entity_values.get(grid.price_entity or "", {}),
+                costs=changes.get(costs or "", {}),
+                energy=energy,
+                fixed=grid.price,
+                last_known=state.last_prices.get(grid.import_stat),
+            )
+            if prices and prices[-1] is not None:
+                state.last_prices[grid.import_stat] = prices[-1]
+            per_grid.append(prices)
+            energies.append(energy)
+        return [
+            average_price(
+                [prices[index] for prices in per_grid],
+                [energy.get(hour, 0.0) for energy in energies],
+            )
+            for index, hour in enumerate(hours)
+        ]
 
     def _async_write_history(
         self, subentry_id: str, history: list[tuple[float, float]]
@@ -363,51 +491,50 @@ class EnergyPaybackCoordinator(DataUpdateCoordinator[PaybackData]):
             return
         async_replace_history(self.hass, entity_id, self.hass.config.currency, history)
 
-    def investment(self, config: CategoryConfig) -> float | None:
-        """Return the investment, from its entity if one is set and valid."""
-        from_entity = _number(self.hass, config.investment_entity)
-        return from_entity if from_entity is not None else config.investment
+    def current_price(
+        self, config: CategoryConfig, state: CategoryState
+    ) -> float | None:
+        """Return the gas, oil, or fuel price in effect now."""
+        now = time()
+        price = _number(self.hass, _price_entity_at(state, now))
+        if price is None:
+            price = value_at(config, state, VALUE_PRICE, now)
+        return price
 
     def _results(self) -> PaybackData:
-        now = time()
         results: dict[str, CategoryResult] = {}
         for subentry_id, config in self.configs.items():
             state = self.states[subentry_id]
-            price = _number(self.hass, config.price_entity)
-            if price is None:
-                price = state.prices.value_at(now)
+            is_heat_pump = config.category == CATEGORY_HEAT_PUMP
+            base: dict[str, Any] = {
+                "category": config.category,
+                "investment": config.investment,
+                "price": None
+                if config.category == CATEGORY_PV
+                else self.current_price(config, state),
+                "heating": config.heating if is_heat_pump else None,
+            }
             if state.data_start is None or state.next_hour is None:
                 results[subentry_id] = CategoryResult(
-                    category=config.category,
-                    calculating=subentry_id not in self._without_data,
-                    investment=self.investment(config),
-                    commissioned=config.commissioned,
-                    price=price,
+                    calculating=subentry_id not in self._without_data, **base
                 )
                 continue
-            commissioned = config.commissioned_ts
-            counting_since = _ceil_hour(max(state.data_start, commissioned or 0))
-            covered = is_covered(commissioned, state.data_start)
-            investment = self.investment(config)
+            counting_since = _ceil_hour(state.data_start)
             summary = summarize(
                 saving=state.saving,
                 counting_since=counting_since,
                 until=state.next_hour,
-                investment=investment,
-                covered=covered,
+                investment=config.investment,
             )
             results[subentry_id] = CategoryResult(
-                category=config.category,
                 calculating=False,
                 saving=state.saving,
-                investment=investment,
                 payback=summary.payback,
                 per_year=summary.per_year,
                 counting_since=dt_util.utc_from_timestamp(counting_since),
-                commissioned=config.commissioned,
-                covered=covered,
                 yearly_from=dt_util.utc_from_timestamp(summary.yearly_from),
-                price=price,
+                heat_estimated=state.estimated if is_heat_pump else None,
+                **base,
             )
         return PaybackData(results)
 
