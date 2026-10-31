@@ -487,9 +487,35 @@ class EnergyPaybackCard extends LitElement {
   `;
 }
 
-if (!customElements.get("energy-payback-card")) {
-  customElements.define("energy-payback-card", EnergyPaybackCard);
-}
+const TAG = "energy-payback-card";
+const REREGISTER_EVERY_MS = 100;
+const REREGISTER_FOR_MS = 60_000;
+
+const register = (): void => {
+  if (customElements.get(TAG)) return;
+  try {
+    customElements.define(TAG, EnergyPaybackCard);
+  } catch {
+    // The browser's own registry already holds this class.
+    customElements.define(TAG, class extends EnergyPaybackCard {});
+  }
+};
+
+register();
+
+// Home Assistant's app replaces the custom element registry with a scoped
+// one when it starts. A card loaded before that is unknown to the new
+// registry, and the dashboard shows a configuration error. Define the card
+// again once the registry has been replaced; Home Assistant then rebuilds it.
+const initialRegistry = window.customElements;
+const startedAt = Date.now();
+const watcher = window.setInterval(() => {
+  const replaced = window.customElements !== initialRegistry;
+  if (replaced) register();
+  if (replaced || Date.now() - startedAt > REREGISTER_FOR_MS) {
+    window.clearInterval(watcher);
+  }
+}, REREGISTER_EVERY_MS);
 
 const registry = window as unknown as {
   customCards?: Array<Record<string, unknown>>;
