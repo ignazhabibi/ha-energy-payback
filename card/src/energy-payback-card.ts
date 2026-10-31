@@ -13,6 +13,7 @@ import {
   totals,
   yearsToPayback,
 } from "./model";
+import { cardStyles } from "./styles";
 import type { CategoryFigures, HomeAssistant } from "./types";
 
 type View = "total" | "yearly";
@@ -28,7 +29,7 @@ const readView = (): View => {
   }
 };
 
-class EnergyPaybackCard extends LitElement {
+export class EnergyPaybackCard extends LitElement {
   static properties = {
     hass: { attribute: false },
     _view: { state: true },
@@ -311,223 +312,138 @@ class EnergyPaybackCard extends LitElement {
     </div>`;
   }
 
-  static styles = css`
-    :host {
-      --energy-payback-pv-color: var(--energy-solar-color, #ff9800);
-      --energy-payback-heat-pump-color: var(--energy-gas-color, #8e021b);
-      --energy-payback-wallbox-color: var(--energy-non-fossil-color, #0f9d58);
-    }
-    ha-card {
-      height: 100%;
-      overflow: hidden;
-    }
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 8px 0 16px;
-    }
-    .title {
-      flex: 1;
-      min-width: 0;
-      margin: 0;
-      font-size: var(--ha-card-header-font-size, 24px);
-      font-weight: var(--ha-font-weight-normal, 400);
-      line-height: 32px;
-      letter-spacing: -0.012em;
-      color: var(--ha-card-header-color, var(--primary-text-color));
-    }
-    .chip {
-      font-size: 14px;
-      font-weight: 500;
-      line-height: 20px;
-      padding: 4px 8px;
-      border-radius: 8px;
-      border: 1px solid var(--divider-color);
-      white-space: nowrap;
-      color: var(--primary-text-color);
-    }
-    .toggle {
-      flex: none;
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      background: none;
-      color: var(--secondary-text-color);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      padding: 0;
-    }
-    .toggle:hover {
-      background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
-    }
-    .toggle:focus-visible,
-    .prices:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-    .toggle svg {
-      width: 24px;
-      height: 24px;
-      fill: currentColor;
-    }
-    .summary {
-      margin: 0;
-      padding: 12px 16px 8px;
-      color: var(--secondary-text-color);
-    }
-    .summary:empty {
-      display: none;
-    }
-    .rows {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-    }
-    .row {
-      display: flex;
-      gap: 16px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--divider-color);
-    }
-    .row:last-child {
-      border-bottom: none;
-    }
-    .pv {
-      --color: var(--energy-payback-pv-color);
-    }
-    .heat_pump {
-      --color: var(--energy-payback-heat-pump-color);
-    }
-    .wallbox {
-      --color: var(--energy-payback-wallbox-color);
-    }
-    .swatch {
-      flex: none;
-      width: 32px;
-      height: 16px;
-      margin-top: 2px;
-      border-radius: 4px;
-      border: 1px solid var(--color);
-      background: color-mix(in srgb, var(--color) 50%, transparent);
-    }
-    .row-body {
-      flex: 1;
-      min-width: 0;
-    }
-    .line {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      color: var(--primary-text-color);
-    }
-    .amount {
-      flex: none;
-      font-variant-numeric: tabular-nums;
-    }
-    .amount.waiting {
-      color: var(--secondary-text-color);
-    }
-    .sub {
-      margin-top: 6px;
-      font-size: 12px;
-      line-height: 16px;
-      color: var(--secondary-text-color);
-    }
-    .sub:empty {
-      display: none;
-    }
-    .sub.since {
-      margin-top: 2px;
-    }
-    .meter {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .bar {
-      flex: 1;
-      height: 6px;
-      border-radius: 4px;
-      background: var(--divider-color);
-      overflow: hidden;
-    }
-    .bar i {
-      display: block;
-      height: 100%;
-      background: var(--color);
-    }
-    .meter span {
-      flex: none;
-      white-space: nowrap;
-    }
-    .footer {
-      padding: 4px 8px 8px;
-      border-top: 1px solid var(--divider-color);
-    }
-    .prices {
-      font: inherit;
-      font-size: 12px;
-      line-height: 16px;
-      color: var(--secondary-text-color);
-      background: none;
-      border: none;
-      padding: 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      text-decoration: underline dotted;
-      text-underline-offset: 3px;
-      text-align: start;
-    }
-    .prices:hover {
-      color: var(--primary-text-color);
-    }
-  `;
-}
-
-const TAG = "energy-payback-card";
-const REREGISTER_EVERY_MS = 100;
-const REREGISTER_FOR_MS = 60_000;
-
-const register = (): void => {
-  if (customElements.get(TAG)) return;
-  try {
-    customElements.define(TAG, EnergyPaybackCard);
-  } catch {
-    // The browser's own registry already holds this class.
-    customElements.define(TAG, class extends EnergyPaybackCard {});
-  }
-};
-
-register();
-
-// Home Assistant's app replaces the custom element registry with a scoped
-// one when it starts. A card loaded before that is unknown to the new
-// registry, and the dashboard shows a configuration error. Define the card
-// again once the registry has been replaced; Home Assistant then rebuilds it.
-const initialRegistry = window.customElements;
-const startedAt = Date.now();
-const watcher = window.setInterval(() => {
-  const replaced = window.customElements !== initialRegistry;
-  if (replaced) register();
-  if (replaced || Date.now() - startedAt > REREGISTER_FOR_MS) {
-    window.clearInterval(watcher);
-  }
-}, REREGISTER_EVERY_MS);
-
-const registry = window as unknown as {
-  customCards?: Array<Record<string, unknown>>;
-};
-registry.customCards = registry.customCards ?? [];
-if (!registry.customCards.some((card) => card.type === "energy-payback-card")) {
-  registry.customCards.push({
-    type: "energy-payback-card",
-    name: "Energy Payback",
-    description:
-      "What your PV plant, heat pump, and electric car have saved, and when they pay off.",
-    preview: true,
-    documentationURL: "https://github.com/ignazhabibi/ha-energy-payback",
-  });
+  static styles = [
+    cardStyles,
+    css`
+      .toggle {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: none;
+        color: var(--secondary-text-color);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        padding: 0;
+      }
+      .toggle:hover {
+        background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+      }
+      .toggle:focus-visible,
+      .prices:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+      }
+      .toggle svg {
+        width: 24px;
+        height: 24px;
+        fill: currentColor;
+      }
+      .rows {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--divider-color);
+      }
+      .row:last-child {
+        border-bottom: none;
+      }
+      .pv {
+        --color: var(--energy-payback-pv-color);
+      }
+      .heat_pump {
+        --color: var(--energy-payback-heat-pump-color);
+      }
+      .wallbox {
+        --color: var(--energy-payback-wallbox-color);
+      }
+      .swatch {
+        flex: none;
+        width: 32px;
+        height: 16px;
+        margin-top: 2px;
+        border-radius: 4px;
+        border: 1px solid var(--color);
+        background: color-mix(in srgb, var(--color) 50%, transparent);
+      }
+      .row-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .line {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--primary-text-color);
+      }
+      .amount {
+        flex: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .amount.waiting {
+        color: var(--secondary-text-color);
+      }
+      .sub {
+        margin-top: 6px;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--secondary-text-color);
+      }
+      .sub:empty {
+        display: none;
+      }
+      .sub.since {
+        margin-top: 2px;
+      }
+      .meter {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .bar {
+        flex: 1;
+        height: 6px;
+        border-radius: 4px;
+        background: var(--divider-color);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--color);
+      }
+      .meter span {
+        flex: none;
+        white-space: nowrap;
+      }
+      .footer {
+        padding: 4px 8px 8px;
+        border-top: 1px solid var(--divider-color);
+      }
+      .prices {
+        font: inherit;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--secondary-text-color);
+        background: none;
+        border: none;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: underline dotted;
+        text-underline-offset: 3px;
+        text-align: start;
+      }
+      .prices:hover {
+        color: var(--primary-text-color);
+      }
+    `,
+  ];
 }

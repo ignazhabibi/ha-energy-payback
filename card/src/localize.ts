@@ -38,6 +38,12 @@ const en = {
   fuel: "Fuel {price}/l",
   prices_link: "Change the prices",
   progress: "{name}: {percent} of the investment saved",
+  history_title: "Savings",
+  history_title_years: "Savings per year",
+  history_total: "Total",
+  history_no_chart: "The chart is only shown in Home Assistant.",
+  history_failed: "The statistics could not be loaded.",
+  history_empty: "No savings in this period.",
 };
 
 type Key = keyof typeof en;
@@ -80,6 +86,12 @@ const de: Record<Key, string> = {
   fuel: "Sprit {price}/l",
   prices_link: "Preise ändern",
   progress: "{name}: {percent} der Investition gespart",
+  history_title: "Ersparnis",
+  history_title_years: "Ersparnis pro Jahr",
+  history_total: "Summe",
+  history_no_chart: "Das Diagramm erscheint nur in Home Assistant.",
+  history_failed: "Die Statistik konnte nicht geladen werden.",
+  history_empty: "Keine Ersparnis in diesem Zeitraum.",
 };
 
 const languages: Record<string, Record<Key, string>> = { en, de };

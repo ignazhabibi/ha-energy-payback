@@ -19,7 +19,16 @@ export interface HomeAssistant {
   locale: { language: string };
   language?: string;
   config: { currency: string };
+  /** The websocket connection; the energy date selection keeps its period here. */
+  connection?: object;
+  callWS<T>(message: Record<string, unknown>): Promise<T>;
 }
+
+/** Rows of `recorder/statistics_during_period`, by statistic id. */
+export type StatisticsResult = Record<
+  string,
+  Array<{ start: number | string; change?: number | null }> | undefined
+>;
 
 export type Category = "pv" | "heat_pump" | "wallbox";
 

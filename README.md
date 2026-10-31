@@ -100,9 +100,10 @@ Home Assistant 2026.10 or newer is required.
    **Energy Payback**.
 5. Follow the setup (see below), then assign areas to the new devices if you
    like.
-6. Add the card **Energy Payback** to a dashboard from the card picker. It has
-   no options. There is no dashboard resource to add: the integration serves
-   the card itself and updates it with the integration.
+6. Add the card **Energy Payback** to a dashboard from the card picker, and
+   **Energy Payback history** if you like. They have no options. There is no
+   dashboard resource to add: the integration serves the cards itself and
+   updates them with the integration.
 
 The past is computed in the background right after setup. This usually takes
 less than a minute; until then the card says that it is calculating.
@@ -166,7 +167,9 @@ overall balance.
 | Saving per year | Average saving per year. Unknown before twelve months of data. |
 | Balance | All savings minus all investments. Unknown while any category is calculating or has no data yet. |
 
-## The card
+## The cards
+
+### Energy Payback
 
 The card finds the categories by itself. The button in its header switches
 between two views:
@@ -179,6 +182,17 @@ Each row says since when it counts. The gas, oil, and fuel prices in use are
 shown at the bottom; selecting them opens the integration page, where they are
 changed. The card follows light and dark themes, works on phones and desktops,
 and can be used with keyboard and screen reader.
+
+### Energy Payback history
+
+What each category saved per hour, day, month, or year, as stacked bars in
+the look of the energy dashboard. A month in which a category cost more than
+it saved shows below the line. The card reads the long-term statistics of the
+saving sensors, which include the computed past.
+
+With an *Energy date selection* card on the same dashboard, it follows the
+selected period: hours for a day, days for a week or month, months for a year.
+Without one it shows one bar per year since counting began.
 
 ## How the data updates
 
@@ -238,7 +252,7 @@ actions:
 
 ## Removal
 
-1. Remove the card from your dashboards.
+1. Remove the cards from your dashboards.
 2. Go to **Settings › Devices & services › Energy Payback**, open the menu
    (⋮) and choose **Delete**. To remove one category only, use **Delete** in
    that category's menu.

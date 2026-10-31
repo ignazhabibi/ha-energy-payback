@@ -66,7 +66,23 @@
       states[id("payback")] = { entity_id: id("payback"), state: payback === null ? "unknown" : String(payback), attributes: {} };
       states[id("per_year")] = { entity_id: id("per_year"), state: c.perYear == null ? "unknown" : String(c.perYear), attributes: {} };
     }
-    return { states, entities, locale: { language }, config: { currency: "EUR" }, ...extra };
+    return { states, entities, locale: { language }, config: { currency: "EUR" }, connection: {}, callWS: statistics, ...extra };
+  }
+
+  // Monthly savings for recorder/statistics_during_period, by category.
+  const monthly = { pv: [40, 60, 110, 150, 190, 210, 200, 170, 120, 70, 40, 30],
+                    heat_pump: [70, 55, 35, 10, -5, -8, -6, -5, 5, 30, 55, 75], wallbox: [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60] };
+  async function statistics(message) {
+    const result = {};
+    for (const id of message.statistic_ids) {
+      const category = id.replace(/^sensor\./, "").replace(/_saving$/, "");
+      const rows = [];
+      const from = new Date(message.start_time), to = new Date(message.end_time);
+      for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d < to && d.getTime() < now; d.setMonth(d.getMonth() + 1))
+        rows.push({ start: d.getTime(), change: monthly[category][d.getMonth()] });
+      result[id] = rows;
+    }
+    return result;
   }
 
   const household = [
@@ -87,6 +103,15 @@
     ["g · Nicht eingerichtet", hass([]), "total"],
   ];
   const grid = document.getElementById("grid");
+  for (const [label, mock] of [["h · Verlauf ohne Datumsauswahl", hass(household)], ["i · Verlauf, nicht eingerichtet", hass([])]]) {
+    const wrap = document.createElement("section");
+    wrap.innerHTML = `<p class="label">${label}</p>`;
+    const card = document.createElement("energy-payback-history-card");
+    card.setConfig({});
+    card.hass = mock;
+    wrap.append(card);
+    grid.append(wrap);
+  }
   for (const [label, mock, view] of cases) {
     const wrap = document.createElement("section");
     wrap.innerHTML = `<p class="label">${label}</p>`;
